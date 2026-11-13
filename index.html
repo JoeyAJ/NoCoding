@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI와 대화로 만드는 소식지 편집기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600&family=Noto+Sans+TC:wght@400;600&family=Noto+Serif+KR:wght@600;700&family=Noto+Serif+TC:wght@600;700&display=swap">
+<style>
+:root{
+  --fs:1;
+  --navy:#173b63;--navy-deep:#0f2a48;
+  --bg:#eef1f4;--paper:#ffffff;--ink:#1b2430;--muted:#4c5867;--line:#d3dae3;
+  --pine:#2e6a4f;--pine-soft:#e2eee7;--warn:#a8423a;--warn-soft:#f6e6e3;
+  --mark:#ffe27a;--bubble:#e3e9f0;--accent:#173b63;
+  --serif:'Noto Serif KR','Noto Serif TC','Noto Serif CJK KR',Georgia,serif;
+  --sans:'IBM Plex Sans KR','Noto Sans TC','Apple SD Gothic Neo','Malgun Gothic','Microsoft JhengHei',sans-serif;
+  color-scheme:light;
+}
+html[lang="zh-Hant"]{
+  --serif:'Noto Serif TC','Noto Serif KR',Georgia,serif;
+  --sans:'Noto Sans TC','IBM Plex Sans KR','Microsoft JhengHei','PingFang TC',sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#11171f;--paper:#19222d;--ink:#e7ecf1;--muted:#a7b1bd;--line:#2d3947;
+    --pine:#7fc4a2;--pine-soft:#1c3328;--warn:#e6948b;--warn-soft:#3a2522;
+    --mark:rgba(255,214,90,.32);--bubble:#243242;--accent:#9cc0ea;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html{font-size:calc(19px * var(--fs));-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.75;overflow-wrap:anywhere}
+html[lang="ko"] body{word-break:keep-all}
+h1,h2,h3{font-family:var(--serif);line-height:1.35;margin:0;font-weight:700}
+p{margin:0}
+button,input,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+:focus-visible{outline:3px solid var(--pine);outline-offset:3px;border-radius:6px}
+
+/* Top bar */
+.topbar{position:sticky;top:0;z-index:10;background:var(--paper);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+.topbar-in{max-width:1080px;margin:0 auto;padding:.6rem 1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.brand{background:none;border:0;padding:.3rem 0;cursor:pointer;font-family:var(--serif);font-weight:700;font-size:1rem;color:var(--accent);text-align:left}
+.controls{margin-left:auto;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:.35rem .85rem;min-height:44px;cursor:pointer;font-size:.86rem}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
+.fontctl{display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--muted)}
+.fontctl button{width:44px;height:44px;border:1px solid var(--line);background:var(--paper);border-radius:10px;cursor:pointer;font-size:1.05rem;font-weight:600}
+
+/* Layout */
+main{max-width:1080px;margin:0 auto;padding:2rem 1.25rem 3rem}
+.lead{font-size:1.1rem;color:var(--muted);max-width:40rem}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:1.4rem 1.5rem;margin-top:1.6rem}
+.panel>h3{font-size:1.15rem;margin-bottom:.8rem}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:52px;padding:.6rem 1.4rem;border-radius:12px;border:2px solid var(--navy);background:transparent;color:var(--accent);font-weight:600;cursor:pointer;text-decoration:none;font-size:1rem}
+.btn.primary{background:var(--navy);color:#fff}
+@media (prefers-color-scheme:dark){.btn{border-color:var(--accent)}.btn.primary{background:var(--accent);color:#0f1a26}}
+.btn-row{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1.4rem}
+.small-btn{border:1px solid var(--line);background:var(--paper);border-radius:10px;min-height:44px;padding:.3rem .9rem;cursor:pointer;font-size:.88rem;font-weight:600;color:var(--accent)}
+.mark{background:linear-gradient(transparent 52%,var(--mark) 52%);box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:0 .1em}
+.take{font-family:var(--serif);font-size:1.18rem;line-height:1.8;margin-top:2rem;max-width:42rem}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:1.15fr 1fr;gap:3rem;align-items:center;padding:1rem 0 2.5rem}
+.hero h1{font-size:2.35rem;letter-spacing:-.01em;margin-bottom:1.1rem}
+.facts{margin:1.6rem 0 0;display:grid;grid-template-columns:auto 1fr;border-top:1px solid var(--line)}
+.facts dt,.facts dd{margin:0;padding:.65rem 0;border-bottom:1px solid var(--line)}
+.facts dt{color:var(--muted);font-size:.9rem;padding-right:1.4rem;white-space:nowrap}
+.facts dd{font-weight:600}
+.cycle-wrap h2{font-size:1.05rem;color:var(--muted);font-family:var(--sans);font-weight:600;margin-bottom:1rem;text-align:center}
+.cycle{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:2.4rem;list-style:none;margin:0;padding:0}
+.cycle li{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem;position:relative}
+.cycle li b{display:block;font-family:var(--serif);font-size:1.05rem}
+.cycle li span{font-size:.86rem;color:var(--muted);line-height:1.55;display:block}
+.cycle li i{font-style:normal;display:inline-grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:50%;background:var(--navy);color:#fff;font-size:.82rem;font-weight:600;margin-bottom:.3rem}
+@media (prefers-color-scheme:dark){.cycle li i{background:var(--accent);color:#0f1a26}}
+.arrow{position:absolute;color:var(--pine);font-size:1.4rem;font-weight:700;line-height:1}
+.arrow{transform:translate(-50%,-50%)}
+.a1{left:50%;top:25%}.a2{left:75%;top:50%}.a3{left:50%;top:75%}.a4{left:25%;top:50%}
+.hub{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--pine);color:#fff;border-radius:999px;padding:.25rem .9rem;font-size:.85rem;font-weight:600;z-index:2;white-space:nowrap}
+@media (prefers-color-scheme:dark){.hub{color:#0f1a26}}
+
+/* Step rail */
+.rail-title{font-size:1rem;color:var(--muted);font-family:var(--sans);font-weight:600;margin-bottom:.7rem}
+.rail{list-style:none;margin:0 0 2.2rem;padding:0;display:grid;grid-template-columns:repeat(6,1fr);gap:.55rem}
+.rail button{width:100%;height:100%;text-align:left;border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:.6rem .75rem;cursor:pointer;display:flex;flex-direction:column;gap:.15rem;font-size:.86rem;line-height:1.4}
+.rail .num{font-weight:600;color:var(--muted);font-size:.78rem}
+.rail .num.ok{color:var(--pine)}
+.rail button[aria-current="step"]{background:var(--navy);border-color:var(--navy);color:#fff}
+.rail button[aria-current="step"] .num{color:#c9d8ea}
+@media (prefers-color-scheme:dark){.rail button[aria-current="step"]{background:var(--accent);border-color:var(--accent);color:#0f1a26}.rail button[aria-current="step"] .num{color:#21364d}}
+
+/* Step head */
+.step-head{margin-bottom:1rem}
+.step-head .kicker{color:var(--pine);font-weight:600;font-size:.95rem}
+.step-head h2{font-size:2rem;margin-top:.2rem}
+.step-head h2:focus{outline:none}
+.step-body{animation:in .35s ease-out}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* Lists */
+ol.do{margin:0;padding:0;list-style:none;counter-reset:d}
+ol.do>li{counter-increment:d;position:relative;padding:.35rem 0 .35rem 2.6rem;max-width:42rem}
+ol.do>li::before{content:counter(d);position:absolute;left:0;top:.35rem;width:1.8rem;height:1.8rem;border-radius:50%;border:2px solid var(--navy);display:grid;place-items:center;font-weight:600;font-size:.85rem;color:var(--accent)}
+@media (prefers-color-scheme:dark){ol.do>li::before{border-color:var(--accent)}}
+
+/* Iceberg */
+.berg{margin-top:1.8rem;border-radius:18px;overflow:hidden;border:1px solid var(--line)}
+.berg-top{background:var(--paper);padding:1.3rem 1.5rem 1.6rem}
+.berg h3{font-size:1.05rem;margin-bottom:.8rem}
+.tabs{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.5rem}
+.tabs li{border:1.5px solid var(--navy);border-radius:10px;padding:.35rem .8rem;font-weight:600;font-size:.92rem;color:var(--accent)}
+@media (prefers-color-scheme:dark){.tabs li{border-color:var(--accent)}}
+.tabs b{margin-right:.4rem}
+.water{height:22px;background:var(--navy-deep);-webkit-mask:radial-gradient(14px 12px at 14px 0,transparent 98%,#000) 0 0/28px 100%;mask:radial-gradient(14px 12px at 14px 0,transparent 98%,#000) 0 0/28px 100%;margin-top:-1px}
+.berg-bottom{background:var(--navy-deep);color:#e8eef5;padding:.6rem 1.5rem 1.5rem}
+.berg-bottom h3{color:#fff}
+.berg-bottom ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:.35rem 1.6rem}
+.berg-bottom li{position:relative;padding-left:1.1rem;font-size:.95rem;line-height:1.6}
+.berg-bottom li::before{content:"";position:absolute;left:0;top:.6em;width:.45rem;height:.45rem;border-radius:50%;background:#7fc4a2}
+
+/* Builder */
+.builder{display:grid;grid-template-columns:1fr 1fr;gap:1.6rem;margin-top:1.6rem;align-items:start}
+.field{display:block;margin-bottom:1rem}
+.field>span{display:block;font-weight:600;margin-bottom:.35rem;font-size:.95rem}
+.field textarea,.field input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:.65rem .8rem;background:var(--paper);line-height:1.6;resize:vertical}
+.field textarea:focus,.field input:focus{outline:3px solid var(--pine);outline-offset:1px;border-color:var(--pine)}
+.outbox{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:1.3rem;position:sticky;top:6rem}
+.outbox h3{font-size:1.05rem}
+.hint{font-size:.88rem;color:var(--muted);margin:.3rem 0 .9rem}
+.msgbox{white-space:pre-wrap;word-break:break-word;font-family:var(--sans);font-size:.95rem;line-height:1.7;margin:0 0 1rem;background:var(--bubble);border-radius:14px;padding:1rem 1.1rem}
+.learned{margin-top:1.8rem;border-left:4px solid var(--pine);background:var(--pine-soft);padding:1.1rem 1.3rem;border-radius:0 14px 14px 0;max-width:46rem}
+.learned h3{font-size:1rem;color:var(--pine);font-family:var(--sans);font-weight:600;margin-bottom:.3rem}
+
+/* Chat */
+.chat{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:1.4rem;margin-top:1.6rem;max-width:46rem}
+.chat>h3{font-size:1rem;color:var(--muted);font-family:var(--sans);font-weight:600;margin-bottom:1rem}
+.msg{display:flex;flex-direction:column;margin-bottom:1.1rem}
+.msg .who{font-size:.8rem;color:var(--muted);font-weight:600;margin-bottom:.25rem}
+.msg.me{align-items:flex-end}
+.msg.me .bubble{background:var(--bubble);border-radius:18px 18px 4px 18px;max-width:88%}
+.msg.ai .bubble{border:1px solid var(--line);border-radius:18px 18px 18px 4px;max-width:92%}
+.bubble{padding:.85rem 1.1rem;font-size:.97rem;line-height:1.7}
+.bubble p+p,.bubble p+div,.bubble div+p{margin-top:.6rem}
+.msg .small-btn{margin-top:.4rem}
+.codechip{display:inline-flex;align-items:center;gap:.6rem;border:1px solid var(--line);border-radius:10px;padding:.5rem .8rem;font-size:.9rem;background:var(--bg)}
+.codechip svg{width:22px;height:22px;flex:none}
+.typing{display:inline-flex;gap:.3rem;padding:.9rem 1.1rem;border:1px solid var(--line);border-radius:18px 18px 18px 4px}
+.typing i{width:.5rem;height:.5rem;border-radius:50%;background:var(--muted);animation:blink 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+
+/* Options */
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:1rem;align-items:start}
+.opt{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:1.2rem 1.3rem}
+.opt h4{font-family:var(--serif);font-size:1.05rem;margin:0 0 .5rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.tag{font-family:var(--sans);font-size:.75rem;font-weight:600;background:var(--pine-soft);color:var(--pine);border-radius:999px;padding:.1rem .6rem}
+.tag.opt-tag{background:var(--bubble);color:var(--muted)}
+.opt p,.opt li{font-size:.94rem}
+.opt ol.do>li{padding-left:2.3rem}
+.opt ol.do>li::before{width:1.55rem;height:1.55rem;font-size:.75rem}
+.sub-title{font-size:1.15rem;margin-top:2.2rem}
+
+/* Mini editor + newsletter sheet */
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:1.6rem;align-items:start;margin-top:1rem}
+.prev-label{font-weight:600;font-size:.9rem;color:var(--muted);margin-bottom:.5rem}
+.sheet-wrap{container-type:inline-size;max-width:380px}
+.sheet{background:#fff;color:#1d2530;aspect-ratio:1/1.414;box-shadow:0 1px 2px rgba(20,35,55,.12),0 8px 24px rgba(20,35,55,.10);border:1px solid #dfe4ea;overflow:hidden;display:flex;flex-direction:column;font-family:var(--sans)}
+.sheet-band{display:none;background:#173b63;color:#fff;font-family:var(--serif);font-weight:700;font-size:4cqw;padding:3cqw 6cqw;letter-spacing:.02em}
+.sheet.band .sheet-band{display:block}
+.sheet-inner{padding:7cqw 7cqw 5cqw;flex:1;overflow:hidden}
+.sheet-title{font-family:var(--serif);font-weight:700;font-size:6.2cqw;line-height:1.3;margin:0 0 4cqw;transition:font-size .3s,color .3s;word-break:break-word}
+.sheet.big .sheet-title{font-size:9.5cqw;color:#173b63}
+.sheet-main{display:block}
+.sheet-photo{display:none;margin:0 0 4cqw}
+.sheet-photo svg{display:block;width:100%;height:auto;border-radius:1cqw}
+.sheet.photo .sheet-photo,.sheet.split .sheet-photo{display:block}
+.sheet.split .sheet-main{display:grid;grid-template-columns:1fr 1fr;gap:4cqw;align-items:start}
+.sheet.split .sheet-photo{margin:0}
+.sheet-body{font-size:3.7cqw;line-height:1.75;white-space:pre-wrap;word-break:break-word;color:#333d49}
+
+/* Requests */
+.edit-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:1.8rem;margin-top:1.6rem;align-items:start}
+.edit-grid h3{font-size:1.05rem;margin-bottom:.8rem}
+.reqs{display:grid;gap:.7rem}
+.req{display:flex;gap:.9rem;align-items:flex-start;text-align:left;border:1.5px solid var(--line);background:var(--paper);border-radius:14px;padding:.9rem 1rem;cursor:pointer;min-height:52px}
+.req b{display:block;font-size:1rem}
+.req-text{display:block;font-size:.88rem;color:var(--muted);line-height:1.6;margin-top:.15rem}
+.req-check{flex:none;width:1.6rem;height:1.6rem;border-radius:7px;border:2px solid var(--line);margin-top:.1rem;display:grid;place-items:center}
+.req[aria-pressed="true"]{border-color:var(--pine);background:var(--pine-soft)}
+.req[aria-pressed="true"] .req-check{background:var(--pine);border-color:var(--pine)}
+.req[aria-pressed="true"] .req-check::after{content:"";width:.45rem;height:.8rem;border:solid #fff;border-width:0 3px 3px 0;transform:translateY(-2px) rotate(45deg)}
+@media (prefers-color-scheme:dark){.req[aria-pressed="true"] .req-check::after{border-color:#0f1a26}}
+
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-top:1rem}
+.cmp{border-radius:14px;padding:1.1rem 1.2rem;border-left:5px solid}
+.cmp.bad{background:var(--warn-soft);border-color:var(--warn)}
+.cmp.good{background:var(--pine-soft);border-color:var(--pine)}
+.cmp .lbl{font-weight:600;font-size:.88rem}
+.cmp.bad .lbl{color:var(--warn)}.cmp.good .lbl{color:var(--pine)}
+.cmp q{display:block;font-family:var(--serif);font-size:1.08rem;margin:.35rem 0 .5rem;quotes:none}
+.cmp p{font-size:.9rem;color:var(--muted)}
+.tailbox{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem;margin-top:.5rem;background:var(--bubble);border-radius:12px;padding:.7rem 1rem}
+.tailbox span{flex:1 1 16rem;font-weight:600}
+
+/* Cases */
+.cases{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem}
+.case{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:1rem 1.2rem}
+.case b{display:block;font-family:var(--serif);margin-bottom:.25rem}
+.case p{font-size:.93rem;color:var(--muted)}
+.notice{margin-top:1.6rem;border:2px solid #d9b13b;border-radius:14px;padding:1rem 1.2rem;max-width:46rem}
+.notice h3{font-size:1rem;margin-bottom:.25rem}
+
+details{margin-top:1rem;border:1px solid var(--line);border-radius:12px;padding:.2rem 1.1rem;background:var(--paper)}
+summary{cursor:pointer;font-weight:600;padding:.7rem 0;min-height:44px}
+details ol{margin:.3rem 0 .6rem}
+.note-small{font-size:.85rem;color:var(--muted);margin-bottom:.8rem}
+
+.summary-list{list-style:none;margin:0;padding:0;counter-reset:s;display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem}
+.summary-list li{counter-increment:s;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:.9rem 1rem;font-size:.95rem}
+.summary-list li::before{content:counter(s);display:block;font-family:var(--serif);font-weight:700;font-size:1.4rem;color:var(--pine)}
+
+/* Tools */
+.cycle-note{margin-top:1.1rem;text-align:center;font-size:.88rem;color:var(--muted)}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1.2rem;align-items:start}
+.tool{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:1.2rem 1.3rem}
+.tool.used{border:2px solid var(--pine)}
+.tool h4{font-family:var(--serif);font-size:1.1rem;margin:0 0 .7rem;display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}
+.tool dl{margin:0}
+.tool dt{font-size:.8rem;font-weight:600;color:var(--muted)}
+.tool dd{margin:0 0 .7rem;font-size:.93rem;line-height:1.65}
+.tool-link{font-size:.88rem;font-weight:600}
+
+/* Bottom nav */
+.pager{display:flex;justify-content:space-between;gap:1rem;margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--line)}
+.pager .btn[disabled]{visibility:hidden}
+
+footer{max-width:1080px;margin:0 auto;padding:1.5rem 1.25rem 2.5rem;font-size:.82rem;color:var(--muted);display:flex;gap:1rem;flex-wrap:wrap;justify-content:space-between;padding-bottom:calc(2.5rem + env(safe-area-inset-bottom,0px))}
+
+.toast{position:fixed;left:50%;bottom:calc(1.5rem + env(safe-area-inset-bottom,0px));transform:translate(-50%,1rem);background:var(--navy);color:#fff;padding:.7rem 1.3rem;border-radius:999px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;z-index:20}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:900px){
+  .hero,.builder,.mini,.edit-grid{grid-template-columns:1fr}
+  .rail{grid-template-columns:repeat(3,1fr)}
+  .outbox{position:static}
+  .summary-list{grid-template-columns:1fr 1fr}
+  .tools{grid-template-columns:1fr}
+}
+@media (max-width:620px){
+  html{font-size:calc(18px * var(--fs))}
+  .hero h1{font-size:1.9rem}
+  .step-head h2{font-size:1.6rem}
+  .rail{grid-template-columns:1fr 1fr}
+  .opts,.compare,.cases,.berg-bottom ul{grid-template-columns:1fr}
+  .cycle{gap:2rem}
+  .controls{margin-left:0}
+  .topbar{position:static}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===== Light frosted-glass theme ===== */
+:root{
+  --bg:#eef3f8;--blue:#3f6ea5;--accent:#2f5b8f;--blue-soft:rgba(63,110,165,.12);--blue-line:rgba(63,110,165,.32);
+  --glass:rgba(255,255,255,.58);--glass-strong:rgba(255,255,255,.76);--glass-border:rgba(255,255,255,.85);
+  --glass-shadow:0 10px 30px rgba(48,80,120,.10),0 1px 2px rgba(48,80,120,.06),inset 0 1px 0 rgba(255,255,255,.7);
+  --bubble:rgba(63,110,165,.09);--line:rgba(63,90,130,.16);--blur:blur(18px) saturate(150%);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#121a24;--blue:#6f9fd6;--accent:#a9c8ee;--blue-soft:rgba(111,159,214,.16);--blue-line:rgba(111,159,214,.4);
+  --glass:rgba(32,44,60,.55);--glass-strong:rgba(36,50,68,.72);--glass-border:rgba(255,255,255,.09);
+  --glass-shadow:0 10px 30px rgba(0,0,0,.30),inset 0 1px 0 rgba(255,255,255,.05);
+  --bubble:rgba(111,159,214,.13);--line:rgba(255,255,255,.10);
+}}
+body{background:var(--bg)}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(42rem 30rem at 8% 6%,rgba(120,170,230,.32),transparent 70%),
+    radial-gradient(36rem 28rem at 92% 18%,rgba(140,215,185,.28),transparent 70%),
+    radial-gradient(40rem 30rem at 70% 92%,rgba(255,226,140,.26),transparent 70%),
+    radial-gradient(30rem 24rem at 15% 85%,rgba(175,160,235,.18),transparent 70%)}
+@media (prefers-color-scheme:dark){body::before{opacity:.45}}
+
+.topbar{background:rgba(255,255,255,.55);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--glass-border);box-shadow:0 4px 18px rgba(48,80,120,.06)}
+@media (prefers-color-scheme:dark){.topbar{background:rgba(22,31,43,.6)}}
+
+.panel,.outbox,.chat,.opt,.case,.tool,.cycle li,.rail button,.req,.summary-list li,details,.berg-top,.notice,.learned{
+  background:var(--glass);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid var(--glass-border);box-shadow:var(--glass-shadow)}
+.tool.used{border:1.5px solid rgba(46,106,79,.45)}
+.learned{border-left:4px solid var(--pine);background:linear-gradient(135deg,rgba(226,238,231,.75),rgba(255,255,255,.5))}
+@media (prefers-color-scheme:dark){.learned{background:linear-gradient(135deg,rgba(28,51,40,.7),rgba(32,44,60,.5))}}
+.notice{border:1.5px solid rgba(217,177,59,.6);background:linear-gradient(135deg,rgba(255,240,190,.55),rgba(255,255,255,.5))}
+@media (prefers-color-scheme:dark){.notice{background:linear-gradient(135deg,rgba(80,66,20,.45),rgba(32,44,60,.5))}}
+
+/* Buttons */
+.btn{background:var(--glass-strong);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--blue-line);color:var(--accent);box-shadow:var(--glass-shadow);transition:transform .15s,box-shadow .15s,background .15s}
+.btn.primary{background:linear-gradient(180deg,rgba(104,150,206,.92),rgba(70,118,175,.92));color:#fff;border:1px solid rgba(255,255,255,.55);box-shadow:0 8px 22px rgba(63,110,165,.28),inset 0 1px 0 rgba(255,255,255,.45)}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:none}
+@media (prefers-color-scheme:dark){
+  .btn{border-color:var(--blue-line);color:var(--accent)}
+  .btn.primary{background:linear-gradient(180deg,rgba(120,165,220,.9),rgba(84,132,190,.9));color:#0d1722;border-color:rgba(255,255,255,.2)}
+}
+.small-btn,.fontctl button{background:var(--glass-strong);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--blue-line);color:var(--accent);box-shadow:var(--glass-shadow)}
+.seg{background:var(--glass-strong);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--blue-soft);color:var(--accent);font-weight:600;box-shadow:inset 0 0 0 1.5px var(--blue-line)}
+
+/* Language pills */
+.seg{padding:3px;gap:3px;overflow:visible}
+.seg button{border-radius:999px;min-height:40px}
+.seg button+button{border-left:0}
+
+/* Step rail */
+.rail button[aria-current="step"]{background:linear-gradient(135deg,rgba(120,170,230,.30),rgba(255,255,255,.55));border:1.5px solid var(--blue-line);color:var(--ink)}
+.rail button[aria-current="step"] .num{color:var(--accent)}
+@media (prefers-color-scheme:dark){.rail button[aria-current="step"]{background:linear-gradient(135deg,rgba(111,159,214,.28),rgba(32,44,60,.55));color:var(--ink)}.rail button[aria-current="step"] .num{color:var(--accent)}}
+
+/* Small accents */
+.cycle li i{background:var(--blue-soft);color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--blue-line)}
+@media (prefers-color-scheme:dark){.cycle li i{background:var(--blue-soft);color:var(--accent)}}
+.hub{background:rgba(226,238,231,.85);color:var(--pine);border:1px solid rgba(46,106,79,.3);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+@media (prefers-color-scheme:dark){.hub{background:rgba(28,51,40,.85);color:var(--pine)}}
+ol.do>li::before{border:1.5px solid var(--blue-line);background:var(--blue-soft);color:var(--accent)}
+@media (prefers-color-scheme:dark){ol.do>li::before{border-color:var(--blue-line)}}
+.tabs li{border:1px solid var(--blue-line);background:var(--glass-strong);color:var(--accent)}
+@media (prefers-color-scheme:dark){.tabs li{border-color:var(--blue-line)}}
+.msgbox{background:var(--bubble);border:1px solid var(--glass-border)}
+.msg.me .bubble{background:var(--bubble);border:1px solid var(--glass-border)}
+.msg.ai .bubble{background:var(--glass-strong)}
+.codechip{background:var(--glass-strong)}
+.tailbox{background:var(--bubble);border:1px solid var(--glass-border)}
+.field textarea,.field input{background:var(--glass-strong);border:1px solid var(--blue-line)}
+.req[aria-pressed="true"]{background:linear-gradient(135deg,rgba(200,230,214,.75),rgba(255,255,255,.55));border-color:rgba(46,106,79,.5)}
+@media (prefers-color-scheme:dark){.req[aria-pressed="true"]{background:linear-gradient(135deg,rgba(28,51,40,.8),rgba(32,44,60,.55))}}
+.cmp{-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+.cmp.bad{background:linear-gradient(135deg,rgba(246,226,222,.8),rgba(255,255,255,.5))}
+.cmp.good{background:linear-gradient(135deg,rgba(220,238,228,.8),rgba(255,255,255,.5))}
+@media (prefers-color-scheme:dark){.cmp.bad{background:rgba(58,37,34,.6)}.cmp.good{background:rgba(28,51,40,.6)}}
+
+/* Iceberg: lighter underwater part */
+.berg{border:1px solid var(--glass-border);box-shadow:var(--glass-shadow)}
+.berg-top{border:0;box-shadow:none;border-radius:0}
+.water{background:rgba(120,165,215,.30)}
+.berg-bottom{background:linear-gradient(180deg,rgba(120,165,215,.30),rgba(90,140,200,.22));color:var(--ink);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur)}
+.berg-bottom h3{color:var(--accent)}
+.berg-bottom li::before{background:var(--pine)}
+@media (prefers-color-scheme:dark){.water{background:rgba(111,159,214,.22)}.berg-bottom{background:linear-gradient(180deg,rgba(111,159,214,.22),rgba(111,159,214,.14))}}
+
+.toast{background:rgba(63,110,165,.88);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid rgba(255,255,255,.4)}
+.pager{border-top:1px solid var(--line)}
+.facts dt,.facts dd{border-bottom:1px solid var(--line)}
+.facts{border-top:1px solid var(--line)}
+.sheet{border-radius:4px}
+
+/* ===== Liquid glass, brighter ===== */
+:root{
+  --bg:#f4f8fd;--ink:#16202c;--muted:#465466;
+  --blue:#3b82f6;--accent:#1f5fc4;--blue-soft:rgba(59,130,246,.14);--blue-line:rgba(59,130,246,.35);
+  --pine:#14875a;--pine-soft:rgba(20,180,120,.14);--mark:#ffe066;
+  --lg-fill:rgba(255,255,255,.34);--lg-fill-strong:rgba(255,255,255,.5);
+  --lg-sheen:linear-gradient(180deg,rgba(255,255,255,.55) 0%,rgba(255,255,255,.14) 42%,rgba(255,255,255,.06) 60%,rgba(255,255,255,.22) 100%);
+  --lg-rim:linear-gradient(140deg,rgba(255,255,255,1) 0%,rgba(255,255,255,.35) 30%,rgba(255,255,255,.06) 55%,rgba(255,255,255,.55) 85%,rgba(255,255,255,.95) 100%);
+  --lg-shadow:0 14px 36px rgba(40,90,170,.14),0 2px 6px rgba(40,90,170,.08),inset 0 1px 1px rgba(255,255,255,.95),inset 0 -1px 1px rgba(255,255,255,.4),inset 0 0 22px rgba(255,255,255,.28);
+  --blur:blur(22px) saturate(185%) brightness(1.06);
+  --bubble:rgba(59,130,246,.10);--line:rgba(60,100,160,.14);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1622;--ink:#eaf0f7;--muted:#aab6c4;--accent:#8fbcff;--blue:#6aa2ff;--blue-soft:rgba(106,162,255,.18);--blue-line:rgba(106,162,255,.42);
+  --pine:#5fd3a0;--pine-soft:rgba(95,211,160,.16);--mark:rgba(255,214,80,.38);
+  --lg-fill:rgba(60,80,110,.30);--lg-fill-strong:rgba(70,92,125,.45);
+  --lg-sheen:linear-gradient(180deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,.03) 45%,rgba(255,255,255,.06) 100%);
+  --lg-rim:linear-gradient(140deg,rgba(255,255,255,.45) 0%,rgba(255,255,255,.08) 35%,rgba(255,255,255,.02) 60%,rgba(255,255,255,.25) 100%);
+  --lg-shadow:0 14px 36px rgba(0,0,0,.35),inset 0 1px 1px rgba(255,255,255,.18),inset 0 0 22px rgba(255,255,255,.05);
+  --bubble:rgba(106,162,255,.14);--line:rgba(255,255,255,.10);
+}}
+body{background:var(--bg)}
+body::before{opacity:1;background:
+  radial-gradient(38rem 30rem at 6% 4%,rgba(80,165,255,.50),transparent 68%),
+  radial-gradient(34rem 28rem at 96% 12%,rgba(60,225,195,.42),transparent 68%),
+  radial-gradient(40rem 30rem at 82% 96%,rgba(255,196,80,.42),transparent 68%),
+  radial-gradient(32rem 26rem at 8% 92%,rgba(255,130,190,.32),transparent 68%),
+  radial-gradient(30rem 24rem at 50% 50%,rgba(150,125,255,.22),transparent 70%)}
+@media (prefers-color-scheme:dark){body::before{opacity:.55}}
+
+/* Liquid glass surface */
+.panel,.outbox,.chat,.opt,.case,.tool,.cycle li,.rail button,.req,.summary-list li,details,.berg,.notice,.learned,
+.btn,.small-btn,.fontctl button,.seg,.cmp,.msgbox,.tailbox,.codechip{
+  position:relative;isolation:isolate;
+  background-color:var(--lg-fill);background-image:var(--lg-sheen);
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);
+  border:1px solid transparent;box-shadow:var(--lg-shadow)}
+.panel::after,.outbox::after,.chat::after,.opt::after,.case::after,.tool::after,.cycle li::after,.rail button::after,.req::after,.summary-list li::after,details::after,.berg::after,.notice::after,.learned::after,
+.btn::after,.small-btn::after,.fontctl button::after,.seg::after,.cmp::after,.msgbox::after,.tailbox::after,.codechip::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;padding:1.3px;pointer-events:none;z-index:2;
+  background:var(--lg-rim);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.panel,.outbox,.chat,.opt,.tool,.berg{border-radius:24px}
+.case,.req,.cycle li,.summary-list li,.notice,.cmp{border-radius:20px}
+.rail button{border-radius:18px}
+.learned{border-radius:20px;border-left:1px solid transparent}
+.msgbox,.tailbox{border-radius:18px}
+.msg.me .bubble{background-color:rgba(59,130,246,.14);background-image:var(--lg-sheen);border:1px solid rgba(255,255,255,.7);box-shadow:inset 0 1px 1px rgba(255,255,255,.9)}
+.msg.ai .bubble{background-color:rgba(255,255,255,.55);background-image:var(--lg-sheen);border:1px solid rgba(255,255,255,.8);box-shadow:inset 0 1px 1px rgba(255,255,255,.9)}
+@media (prefers-color-scheme:dark){.msg.ai .bubble{background-color:rgba(60,80,110,.4);border-color:rgba(255,255,255,.1)}.msg.me .bubble{border-color:rgba(255,255,255,.1)}}
+
+/* Buttons: liquid capsules */
+.btn,.small-btn{border-radius:999px}
+.btn{color:var(--accent);font-weight:600}
+.btn.primary{color:#fff;background-color:rgba(46,125,245,.88);
+  background-image:radial-gradient(120% 90% at 50% -20%,rgba(255,255,255,.65),rgba(255,255,255,0) 55%),linear-gradient(180deg,rgba(110,180,255,.9),rgba(37,110,232,.92));
+  box-shadow:0 10px 26px rgba(46,125,245,.35),0 2px 6px rgba(46,125,245,.25),inset 0 1px 1px rgba(255,255,255,.85),inset 0 -2px 6px rgba(10,60,160,.25);
+  text-shadow:0 1px 1px rgba(10,50,140,.35)}
+.btn:hover{transform:translateY(-1px) scale(1.01)}
+@media (prefers-color-scheme:dark){.btn.primary{color:#fff;background-color:rgba(70,140,250,.85)}}
+.fontctl button{border-radius:14px}
+.seg{border-radius:999px}
+.seg button[aria-pressed="true"]{background:rgba(59,130,246,.18);background-image:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,.1));color:var(--accent);box-shadow:inset 0 1px 1px rgba(255,255,255,.95),inset 0 0 0 1px rgba(59,130,246,.35),0 3px 10px rgba(59,130,246,.18)}
+@media (prefers-color-scheme:dark){.seg button[aria-pressed="true"]{background-image:none}}
+
+/* Top bar */
+.topbar{background:rgba(255,255,255,.38);background-image:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.18));-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid rgba(255,255,255,.8);box-shadow:0 6px 24px rgba(40,90,170,.08),inset 0 -1px 0 rgba(255,255,255,.6)}
+@media (prefers-color-scheme:dark){.topbar{background:rgba(20,30,45,.45);background-image:none;border-bottom-color:rgba(255,255,255,.08)}}
+
+/* Accents brighter */
+.rail button[aria-current="step"]{background-color:rgba(59,130,246,.20);background-image:radial-gradient(120% 80% at 30% -10%,rgba(255,255,255,.7),transparent 60%);border:1px solid transparent;color:var(--ink);box-shadow:0 10px 26px rgba(59,130,246,.22),inset 0 1px 1px rgba(255,255,255,.95)}
+.rail button[aria-current="step"] .num{color:var(--accent)}
+.cycle li i,ol.do>li::before{background:rgba(59,130,246,.14);background-image:linear-gradient(180deg,rgba(255,255,255,.7),rgba(255,255,255,.1));color:var(--accent);border:0;box-shadow:inset 0 0 0 1px rgba(59,130,246,.35),inset 0 1px 1px rgba(255,255,255,.95)}
+.hub{background:rgba(20,180,120,.16);background-image:linear-gradient(180deg,rgba(255,255,255,.7),rgba(255,255,255,.15));color:var(--pine);border:1px solid rgba(255,255,255,.85);box-shadow:0 4px 14px rgba(20,150,100,.18),inset 0 1px 1px #fff}
+.tabs li{border-radius:999px;border:1px solid rgba(255,255,255,.85);background:rgba(59,130,246,.12);background-image:linear-gradient(180deg,rgba(255,255,255,.65),rgba(255,255,255,.1));box-shadow:inset 0 1px 1px #fff,0 2px 8px rgba(59,130,246,.12)}
+@media (prefers-color-scheme:dark){.hub,.tabs li{border-color:rgba(255,255,255,.12);background-image:none}}
+.tag{background:rgba(20,180,120,.16);border:1px solid rgba(255,255,255,.8)}
+.tag.opt-tag{background:rgba(59,130,246,.12)}
+.tool.used{background-color:rgba(20,180,120,.12)}
+.req[aria-pressed="true"]{background-color:rgba(20,180,120,.18);background-image:radial-gradient(120% 80% at 20% -10%,rgba(255,255,255,.7),transparent 60%)}
+.req[aria-pressed="true"] .req-check{background:var(--pine);border-color:var(--pine)}
+.req-check{border-radius:9px;background:rgba(255,255,255,.5)}
+.learned{background-color:rgba(20,180,120,.13)}
+.notice{background-color:rgba(255,200,60,.16)}
+.cmp.bad{background-color:rgba(255,110,100,.13);border-left:0}
+.cmp.good{background-color:rgba(20,180,120,.13);border-left:0}
+.cmp.bad .lbl{color:#c2412f}
+@media (prefers-color-scheme:dark){.cmp.bad .lbl{color:#ff9a8c}}
+.field textarea,.field input{background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.9);border-radius:16px;box-shadow:inset 0 1px 3px rgba(40,90,170,.10),0 1px 0 rgba(255,255,255,.8)}
+@media (prefers-color-scheme:dark){.field textarea,.field input{background:rgba(40,55,80,.45);border-color:rgba(255,255,255,.1)}}
+
+/* Iceberg */
+.berg{overflow:hidden}
+.berg-top{background:transparent;background-image:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.water{background:rgba(80,165,255,.30)}
+.berg-bottom{background:linear-gradient(180deg,rgba(80,165,255,.30),rgba(60,200,220,.22));-webkit-backdrop-filter:none;backdrop-filter:none}
+.berg-bottom h3{color:var(--accent)}
+@media (prefers-color-scheme:dark){.water{background:rgba(106,162,255,.22)}.berg-bottom{background:linear-gradient(180deg,rgba(106,162,255,.22),rgba(60,200,220,.12))}}
+
+.toast{border-radius:999px;background:rgba(46,125,245,.85);background-image:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0));border:1px solid rgba(255,255,255,.6);box-shadow:0 10px 26px rgba(46,125,245,.35),inset 0 1px 1px rgba(255,255,255,.8)}
+.sheet{border-radius:6px;box-shadow:0 18px 40px rgba(40,90,170,.18),0 2px 6px rgba(40,90,170,.10)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root{--lg-fill:rgba(255,255,255,.85);--lg-fill-strong:rgba(255,255,255,.92)}
+}
+.req[aria-pressed="true"]{border-color:transparent}
+.rail button[aria-current="step"]{background-color:rgba(59,130,246,.26)}
+@media (prefers-color-scheme:dark){
+  .cycle li i,ol.do>li::before{background-image:none;background-color:rgba(106,162,255,.22);color:#cfe1ff}
+  .rail button[aria-current="step"]{background-image:none;background-color:rgba(106,162,255,.28)}
+  .req[aria-pressed="true"]{background-image:none}
+}
+
+/* Cycle numbers: large, solid, high contrast */
+.cycle li{display:grid;grid-template-columns:auto 1fr;column-gap:.7rem;align-items:center;padding:1rem 1.05rem}
+.cycle li > i{grid-row:span 2;align-self:center;width:2.15rem;height:2.15rem;margin:0;font-size:1.08rem;font-weight:700;font-family:var(--sans);
+  color:#fff;background-color:#2e7df5;background-image:radial-gradient(120% 90% at 50% -15%,rgba(255,255,255,.6),rgba(255,255,255,0) 55%),linear-gradient(180deg,#5ea3ff,#2167e0);
+  box-shadow:0 4px 10px rgba(46,125,245,.28),inset 0 1px 1px rgba(255,255,255,.85),inset 0 -2px 4px rgba(10,60,160,.25);text-shadow:0 1px 1px rgba(10,50,140,.35)}
+.cycle li b{font-size:1.08rem;align-self:end}
+.cycle li span{align-self:start}
+.arrow{font-size:1.6rem;font-weight:700;color:#14a06a}
+@media (prefers-color-scheme:dark){
+  .cycle li > i{color:#fff;background-color:#3b82f6;background-image:linear-gradient(180deg,#6aa8ff,#2f6fe0)}
+  .arrow{color:#5fd3a0}
+}
+@media (max-width:620px){
+  .cycle li{display:block}
+  .cycle li > i{display:grid;margin-bottom:.4rem;width:2rem;height:2rem;font-size:1rem}
+}
+
+/* ===== Liquid glass v2: clear, refractive, specular ===== */
+:root{
+  --lg-fill:rgba(255,255,255,.16);--lg-fill-text:rgba(255,255,255,.34);
+  --blur:blur(.8px) saturate(170%) brightness(1.04);
+  --lg-shadow:0 12px 30px rgba(30,70,140,.12),0 1px 3px rgba(30,70,140,.10),
+    inset 1.5px 1.5px 0 -.5px rgba(255,255,255,.98),inset -1.5px -1.5px 0 -.5px rgba(255,255,255,.6),
+    inset 0 0 0 1px rgba(255,255,255,.30),inset 0 -12px 20px -14px rgba(20,60,130,.22),inset 0 12px 22px -16px rgba(255,255,255,.7);
+  --lg-rim:linear-gradient(135deg,rgba(255,255,255,1) 0%,rgba(255,255,255,.15) 22%,rgba(255,255,255,0) 50%,rgba(255,255,255,.15) 78%,rgba(255,255,255,.9) 100%);
+}
+@media (prefers-color-scheme:dark){:root{
+  --lg-fill:rgba(60,85,120,.18);--lg-fill-text:rgba(40,58,85,.46);
+  --lg-shadow:0 12px 30px rgba(0,0,0,.35),inset 1.5px 1.5px 0 -.5px rgba(255,255,255,.35),inset -1.5px -1.5px 0 -.5px rgba(255,255,255,.15),inset 0 0 0 1px rgba(255,255,255,.08),inset 0 12px 22px -16px rgba(255,255,255,.22);
+  --lg-rim:linear-gradient(135deg,rgba(255,255,255,.5),rgba(255,255,255,0) 30%,rgba(255,255,255,0) 70%,rgba(255,255,255,.3));
+}}
+/* Texture behind the glass so the bending is visible */
+body::before{background:
+  radial-gradient(circle,rgba(40,90,170,.20) 1.4px,transparent 1.9px) 0 0/24px 24px,
+  radial-gradient(38rem 30rem at 6% 4%,rgba(80,165,255,.55),transparent 68%),
+  radial-gradient(34rem 28rem at 96% 12%,rgba(60,225,195,.48),transparent 68%),
+  radial-gradient(40rem 30rem at 82% 96%,rgba(255,196,80,.48),transparent 68%),
+  radial-gradient(32rem 26rem at 8% 92%,rgba(255,130,190,.38),transparent 68%),
+  radial-gradient(30rem 24rem at 50% 50%,rgba(150,125,255,.26),transparent 70%)}
+@media (prefers-color-scheme:dark){body::before{background:
+  radial-gradient(circle,rgba(170,200,255,.10) 1.3px,transparent 1.8px) 0 0/24px 24px,
+  radial-gradient(38rem 30rem at 6% 4%,rgba(80,165,255,.45),transparent 68%),
+  radial-gradient(34rem 28rem at 96% 12%,rgba(60,225,195,.35),transparent 68%),
+  radial-gradient(40rem 30rem at 82% 96%,rgba(255,196,80,.30),transparent 68%),
+  radial-gradient(32rem 26rem at 8% 92%,rgba(255,130,190,.28),transparent 68%)}}
+
+.panel,.outbox,.chat,.opt,.case,.tool,.cycle li,.rail button,.req,.summary-list li,details,.berg,.notice,.learned,.btn,.small-btn,.fontctl button,.seg,.cmp,.msgbox,.tailbox,.codechip{
+  background-color:var(--lg-fill);
+  background-image:radial-gradient(11rem circle at var(--mx,14%) var(--my,-35%),rgba(255,255,255,.30),rgba(255,255,255,0) 45%),
+    linear-gradient(180deg,rgba(255,255,255,.26) 0%,rgba(255,255,255,0) 26%,rgba(255,255,255,0) 76%,rgba(255,255,255,.14) 100%);
+  -webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--lg-shadow)}
+.panel,.outbox,.chat,.opt,.case,.tool,.learned,.notice,.berg,.cmp,details,.msgbox,.summary-list li,.req{background-color:var(--lg-fill-text)}
+.panel::after,.outbox::after,.chat::after,.opt::after,.case::after,.tool::after,.cycle li::after,.rail button::after,.req::after,.summary-list li::after,details::after,.berg::after,.notice::after,.learned::after,.btn::after,.small-btn::after,.fontctl button::after,.seg::after,.cmp::after,.msgbox::after,.tailbox::after,.codechip::after{padding:1px;background:var(--lg-rim)}
+html.lg-refract :is(.panel,.outbox,.chat,.opt,.case,.tool,.cycle li,.rail button,.req,.summary-list li,details,.berg,.notice,.learned,.btn,.small-btn,.fontctl button,.seg,.cmp,.msgbox,.tailbox,.codechip){backdrop-filter:url(#lg-refract) blur(.6px) saturate(170%) brightness(1.04)}
+@media (prefers-color-scheme:dark){
+  :is(.panel,.outbox,.chat,.opt,.case,.tool,.cycle li,.rail button,.req,.summary-list li,details,.berg,.notice,.learned,.btn,.small-btn,.fontctl button,.seg,.cmp,.msgbox,.tailbox,.codechip){background-image:radial-gradient(16rem circle at var(--mx,18%) var(--my,-30%),rgba(255,255,255,.12),rgba(255,255,255,0) 45%),linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0) 30%)}
+}
+
+/* Tinted states keep the clear glass, only change the tint */
+.rail button[aria-current="step"]{background-color:rgba(59,130,246,.24)}
+.req[aria-pressed="true"],.tool.used,.learned,.cmp.good{background-color:rgba(20,180,120,.18)}
+.notice{background-color:rgba(255,200,60,.22)}
+.cmp.bad{background-color:rgba(255,110,100,.17)}
+.btn{background-color:rgba(255,255,255,.22)}
+.btn.primary{color:#fff;background-color:rgba(37,112,236,.86);
+  background-image:radial-gradient(7rem circle at var(--mx,30%) var(--my,-60%),rgba(255,255,255,.45),rgba(255,255,255,0) 50%),linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,0) 45%,rgba(0,40,120,.14));
+  box-shadow:0 10px 24px rgba(37,112,236,.32),inset 1.5px 1.5px 0 -.5px rgba(255,255,255,.95),inset -1.5px -1.5px 0 -.5px rgba(255,255,255,.5),inset 0 -8px 14px -10px rgba(0,30,110,.45)}
+.seg button[aria-pressed="true"]{background-color:rgba(59,130,246,.20);background-image:none;box-shadow:inset 1px 1px 0 -.3px rgba(255,255,255,.95),inset 0 0 0 1px rgba(59,130,246,.30),0 3px 10px rgba(59,130,246,.16)}
+.topbar{background-color:rgba(255,255,255,.30);background-image:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,.10));-webkit-backdrop-filter:blur(2px) saturate(180%);backdrop-filter:blur(2px) saturate(180%);box-shadow:0 6px 20px rgba(30,70,140,.08),inset 0 -1px 0 rgba(255,255,255,.8)}
+html.lg-refract .topbar{backdrop-filter:url(#lg-refract) blur(1px) saturate(180%)}
+@media (prefers-color-scheme:dark){.topbar{background-color:rgba(20,30,45,.4);background-image:none}}
+.field textarea,.field input{background:rgba(255,255,255,.62)}
+@media (prefers-color-scheme:dark){.field textarea,.field input{background:rgba(30,44,66,.6)}}
+
+/* Fix: keep the message box sticky on wide screens, no offset on narrow ones */
+.outbox{position:sticky;top:6rem}
+@media (max-width:900px){.outbox{position:relative;top:auto}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="lg-refract" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.006 0.009" numOctaves="2" seed="11" result="noise"/>
+    <feGaussianBlur in="noise" stdDeviation="3" result="soft"/>
+    <feDisplacementMap in="SourceGraphic" in2="soft" scale="34" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
+<header class="topbar">
+  <div class="topbar-in">
+    <button type="button" class="brand" id="brand"></button>
+    <div class="controls">
+      <div class="seg" role="group" id="langGroup">
+        <button type="button" data-lang="ko">한국어</button>
+        <button type="button" data-lang="zh">繁體中文</button>
+        <button type="button" data-lang="en">English</button>
+      </div>
+      <div class="fontctl"><span id="fsLabel"></span>
+        <button type="button" id="fsMinus">−</button>
+        <button type="button" id="fsPlus">+</button>
+      </div>
+    </div>
+  </div>
+</header>
+<main id="main"></main>
+<footer><span>© NexAeon Studio. Built by Joey.</span><span id="footNote"></span></footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* ===== 설정 / 設定 / Settings =====
+   開發時間：在下面填入後，首頁就會顯示「開發時間」。留空則不顯示。
+   例：ko:'약 3주', zh:'約 3 週', en:'About 3 weeks' */
+const DEV_TIME = { ko:'', zh:'', en:'' };
+const EDITOR_URL = 'https://joeyaj.github.io/newsletter-editor-beta/';
+
+const L = {
+ko:{
+  docTitle:'AI와 대화로 만드는 소식지 편집기', brand:'소식지 편집기 개발 안내',
+  fontSize:'글자 크기', smaller:'글자 작게', larger:'글자 크게',
+  heroTitle:'코딩을 몰라도, 대화로 만들 수 있습니다',
+  heroLead:'우송대학교 동문 소식지 편집기는 ChatGPT의 코딩 도구인 Codex와 대화하며 만들었습니다. 코드는 AI가 쓰고, 무엇을 만들지 정하고 결과를 확인하는 일은 사람이 했습니다. 이 안내는 그 과정을 여섯 단계로 보여 드립니다.',
+  factTool:'사용한 도구', factToolV:'Codex (ChatGPT 계정으로 사용)', factTime:'개발 기간',
+  factResult:'결과물', factResultV:'웹 편집기 파일 1개 (코드 약 3,500줄)',
+  cycleTitle:'개발은 이 네 가지의 반복입니다',
+  cycle:[['요청하기','만들고 싶은 것을 말합니다'],['만들기','AI가 코드를 씁니다'],['고치기','바꿀 점을 다시 말합니다'],['확인하기','직접 열어서 써 봅니다']],
+  hub:'반복', cycleNote:'Codex, Claude Code, Cursor 등 어떤 도구를 써도 이 순서는 같습니다.', start:'1단계부터 시작하기', openEditor:'실제 편집기 열기',
+  railTitle:'여섯 단계', stepN:'{n}단계', prev:'이전 단계', next:'다음 단계', backTop:'처음으로',
+  copy:'복사하기', copied:'복사했습니다', copyFail:'복사하지 못했습니다. 글을 직접 선택해서 복사해 주세요.',
+  learned:'실제 편집기에서 배운 점', footer:'이 안내 페이지는 실제 편집기에 영향을 주지 않습니다.',
+  band:'우송대학교 동문 소식', photoAlt:'사진 자리 예시', typing:'Codex가 입력 중',
+  titles:['완성품 둘러보기','만들 것 정리하기','첫 버전 만들기','대화로 고치기','문제가 생겼을 때','공유하고 더 나아가기'],
+  s1:{lead:'먼저 결과물을 직접 써 보세요. 편집기를 처음 열면 사용 설명서가 자동으로 나타납니다.',
+    todo:'해 볼 일',
+    items:['아래 ‘실제 편집기 열기’ 버튼을 누릅니다. 새 창에서 열립니다.','사용 설명서에서 ‘▶ 애니메이션 데모 보기 (약 1분)’를 누르면, 편집 과정을 자동으로 보여 줍니다.','위쪽 탭을 순서대로 눌러 봅니다.'],
+    tabs:['기본 정보','레이아웃 디자인','콘텐츠 편집','내보내기'],
+    seeTitle:'화면에 보이는 것', hideTitle:'그 안에서 일하는 기능',
+    hidden:['글이 넘치면 다음 페이지로 자동으로 이어 붙이기','페이지가 넘칠 때 알려 주는 경고','실행 취소와 다시 실행','자동 저장, 이름을 붙인 임시 저장','화면 언어 3개(한국어·중국어·영어)와 소식지 언어 2개(한국어·중국어)','1~4페이지 소식지 템플릿, 5가지 기사 배치','PDF·PNG·Canva로 내보내기, 다른 컴퓨터로 옮기는 백업 파일'],
+    take:'이 기능들은 한 번에 만들어진 것이 아닙니다. 하나씩 요청하고, 확인하고, 고치면서 쌓였습니다.'},
+  s2:{lead:'AI에게 맡기기 전에 메모 한 장을 먼저 씁니다. 요청이 구체적일수록 첫 결과가 좋아집니다. 아래 칸은 소식지 편집기를 예로 채워 두었습니다. 자유롭게 바꿔 보세요.',
+    f:{what:'무엇을 만들고 싶나요?',who:'누가 사용하나요?',must:'꼭 필요한 기능',later:'나중에 추가해도 되는 기능'},
+    def:{what:'동문 소식지를 만드는 웹 편집기',who:'국제교류처 직원 (컴퓨터에 익숙하지 않은 사람 포함)',must:'제목과 본문 입력, 사진 넣기, 미리 보기, PDF로 저장',later:'여러 페이지, 중국어 소식지, Canva로 내보내기'},
+    outTitle:'Codex에 보낼 첫 메시지', outHint:'복사해서 Codex 대화창에 붙여넣으세요. 왼쪽 칸을 고치면 메시지도 바로 바뀝니다.',
+    prompt:b=>`다음과 같은 것을 만들고 싶습니다.\n\n- 만들고 싶은 것: ${b.what}\n- 사용하는 사람: ${b.who}\n- 꼭 필요한 기능: ${b.must}\n- 나중에 추가할 기능: ${b.later}\n\n저는 프로그래밍을 모릅니다. 바로 코드를 쓰지 말고, 먼저 기능 목록과 만드는 순서를 쉬운 말로 정리해 주세요. 제가 정해야 할 것이 있으면 질문해 주세요.`,
+    learnedText:'실제 편집기에서 ‘언어’는 서로 다른 두 가지 설정으로 나뉘어 있습니다. 편집기 화면에 나오는 언어(한국어·중국어·영어)와, 소식지에 실리는 글의 언어(한국어·중국어)입니다. 처음 요청에 ‘3개 언어 지원’이라고만 쓰면 AI는 이 차이를 알 수 없습니다. 이런 구분은 쓰는 사람이 정해야 합니다.'},
+  s3:{lead:'정리가 끝나면, 가장 작은 버전부터 만들어 달라고 합니다. Codex는 내 컴퓨터의 폴더 안에 파일을 직접 만들어 주기 때문에, 코드를 복사하거나 저장할 필요가 없습니다.',
+    prepTitle:'처음 한 번만 하는 준비',
+    prep:['Codex 앱을 설치합니다. 맥용과 윈도우용이 있으며, 평소 쓰는 ChatGPT 계정으로 로그인합니다.','바탕화면에 새 폴더를 하나 만듭니다. 예: 소식지편집기','Codex 앱에서 그 폴더를 작업할 프로젝트로 선택합니다.'],
+    prepNote:'메뉴 이름과 위치는 앱 업데이트에 따라 바뀔 수 있습니다. 사용할 수 있는 양은 ChatGPT 요금제에 따라 다릅니다.',
+    chatTitle:'Codex 대화 예시', you:'나',
+    userMsg:'정리한 내용 중에서 가장 기본 기능만 먼저 만들어 주세요. 왼쪽에는 제목과 본문을 쓰는 칸, 오른쪽에는 A4 용지 모양의 미리 보기가 있으면 됩니다. 글을 쓰면 미리 보기가 바로 바뀌어야 합니다. 이 폴더에 index.html 파일 하나로 만들어 주세요.',
+    showReply:'Codex의 답 보기', aiMsg:'요청하신 기본 편집기를 만들었습니다.', fileChip:'index.html (새 파일)', aiMsg2:'폴더에서 index.html을 두 번 클릭하면 브라우저에서 열립니다.',
+    viewTitle:'결과 확인하기',
+    view:['만들어 둔 폴더를 엽니다.','index.html 파일을 두 번 클릭합니다. 인터넷 브라우저에서 편집기가 열립니다.','작업 중에 Codex가 파일을 만들거나 명령을 실행해도 되는지 물을 수 있습니다. 내용을 읽어 보고 허용합니다. 이해가 안 되면 “이게 무슨 뜻인지 쉽게 설명해 주세요”라고 물어보면 됩니다.'],
+    tryTitle:'이런 첫 버전이 나옵니다. 직접 써 보세요.',
+    fTitle:'제목', fBody:'본문', preview:'미리 보기',
+    miniTitle:'다시 만난 우리', miniBody:'우송대학교 동문 여러분, 안녕하세요. 이번 호에서는 졸업생들의 새로운 소식과 학교 이야기를 전해 드립니다.',
+    take:'첫 버전은 단순해도 괜찮습니다. 중요한 것은 직접 열어서 써 보는 것입니다.'},
+  s4:{lead:'결과를 보고 바꾸고 싶은 점을 한 문장씩 말합니다. Codex가 파일을 고치면, 브라우저에서 새로고침(F5)해서 확인합니다. 아래 요청을 눌러 보세요. 미리 보기가 그 요청대로 바뀝니다. 다시 누르면 원래대로 돌아갑니다.',
+    reqTitle:'보낼 수 있는 요청',
+    reqs:[{k:'big',label:'제목 크게',text:'제목 글씨를 지금보다 크게 하고, 색을 학교 남색(#173b63)으로 바꿔 주세요.'},
+      {k:'band',label:'머리글 띠 넣기',text:'페이지 맨 위에 ‘우송대학교 동문 소식’이라고 쓴 남색 머리글 띠를 넣어 주세요.'},
+      {k:'photo',label:'사진 자리 만들기',text:'제목 아래에 사진을 넣을 자리를 만들어 주세요.'},
+      {k:'split',label:'사진과 글 나란히',text:'사진과 본문을 좌우로 나란히 놓는 배치로 바꿔 주세요.'}],
+    compareTitle:'같은 뜻이라도 이렇게 다릅니다',
+    badL:'모호한 요청', bad:'더 예쁘게 해 주세요.', badWhy:'AI가 무엇을 바꿀지 추측해야 하므로, 원하지 않는 곳까지 바뀔 수 있습니다.',
+    goodL:'분명한 요청', good:'제목 글씨를 크게 하고 색을 남색으로 바꿔 주세요. 다른 부분은 그대로 두세요.', goodWhy:'무엇을, 어떻게 바꿀지, 무엇을 지킬지가 모두 들어 있습니다.',
+    rulesTitle:'고칠 때 지키는 세 가지',
+    rules:['한 번에 하나만 요청합니다.','요청 끝에 아래 문장을 덧붙입니다.','잘 되는 상태가 되면 폴더를 통째로 복사해 둡니다. 예: 소식지편집기_v1, 소식지편집기_v2. 문제가 생기면 이전 폴더로 돌아가면 됩니다.'],
+    tail:'다른 기능은 그대로 두세요. 고친 뒤에는 무엇을 바꿨는지 쉬운 말로 알려 주세요.',
+    take:'실제 편집기의 기능도 모두 이렇게 하나씩 더해졌습니다.'},
+  s5:{lead:'AI가 만든 코드도 자주 틀립니다. 당황할 필요 없습니다. 본 것을 그대로 알려 주면 AI가 고칩니다.',
+    tplTitle:'문제를 알릴 때 쓰는 틀',
+    tpl:'문제가 있습니다.\n\n- 제가 한 일: (예: ‘PDF로 저장’ 버튼을 눌렀습니다)\n- 기대한 결과: (예: 모든 페이지가 PDF로 저장됨)\n- 실제 결과: (예: 사진이 빠진 채로 저장됨)\n\n화면 캡처를 함께 보냅니다. 다른 기능은 그대로 두고 이 문제만 고쳐 주세요.',
+    casesTitle:'자주 만나는 상황',
+    cases:[['화면을 보여 주고 싶을 때','화면을 캡처해서 Codex 대화창에 붙여넣거나 첨부합니다. 캡처 단축키: 윈도우는 Windows + Shift + S, 맥은 Command + Shift + 4.'],
+      ['Codex가 허락을 물을 때','무엇을 하려는지 읽어 봅니다. 이해가 안 되면 “이게 무슨 뜻인지 쉽게 설명해 주세요”라고 묻습니다.'],
+      ['대화가 너무 길어졌을 때','새 대화를 시작하면 됩니다. 파일은 폴더에 그대로 남아 있으므로, “이 폴더의 편집기를 이어서 고치고 싶습니다”라고만 말해도 됩니다.'],
+      ['같은 문제가 계속될 때','마지막으로 잘 되던 백업 폴더로 돌아가서, 요청을 더 작게 나누어 다시 시도합니다.']],
+    privacyTitle:'개인정보 주의',
+    privacy:'동문의 실명, 연락처, 사진 같은 개인정보는 AI 대화창에 넣지 마세요. 연습할 때는 가짜 이름과 예시 사진을 씁니다.'},
+  s6:{lead:'완성한 편집기는 HTML 파일 하나입니다. 공유하는 방법은 두 가지입니다.',
+    a:{t:'파일을 그대로 보내기',tag:'가장 쉬움',x:'폴더 안의 index.html 파일을 이메일이나 메신저로 보내면, 받는 사람이 두 번 클릭해서 바로 열 수 있습니다. 따로 설치할 것이 없습니다.'},
+    b:{t:'인터넷 주소 만들기',tag:'선택',x:'GitHub Pages라는 무료 서비스를 쓰면 누구나 열 수 있는 웹 주소가 생깁니다. 실제 편집기도 이렇게 공개되어 있습니다. 처음이라면 Codex나 ChatGPT에게 한 단계씩 안내해 달라고 하면 됩니다.'},
+    bPrompt:'HTML 파일 하나를 GitHub Pages로 인터넷에 공개하고 싶습니다. 저는 처음입니다. 화면에서 무엇을 누르면 되는지 한 번에 한 단계씩만 알려 주세요. 제가 “다음”이라고 하면 다음 단계를 알려 주세요.',
+    detailsSum:'GitHub Pages 순서 미리 보기',
+    gh:['GitHub(github.com)에 가입하고 로그인합니다.','새 저장소(Repository)를 만듭니다.','index.html 파일을 업로드합니다.','Settings → Pages에서 main 브랜치를 선택하고 저장합니다.','몇 분 뒤 생성된 주소로 접속해 확인합니다.'],
+    ghNote:'GitHub 화면의 메뉴 이름은 바뀔 수 있습니다.',
+    toolsTitle:'도구는 달라도 방법은 같습니다',
+    toolsLead:'이 안내는 Codex를 예로 들었지만, 같은 일을 다른 AI 도구로도 할 수 있습니다. 다른 것은 화면과 사용법뿐이고, 일하는 방법은 같습니다.',
+    howL:'어떻게 일하나요', fitL:'이런 분께 맞습니다', usedTag:'이 안내의 예시', link:'공식 사이트',
+    tools:[{n:'Codex',used:true,url:'https://developers.openai.com/codex/app',how:'OpenAI가 만든 코딩 도구입니다. ChatGPT 계정으로 로그인하는 데스크톱 앱(맥·윈도우)에서, 고른 폴더 안의 파일을 AI가 직접 만들고 고칩니다.',fit:'평소 ChatGPT를 쓰고 있어서 익숙하게 시작하고 싶은 분'},
+      {n:'Claude Code',url:'https://docs.claude.com/en/docs/claude-code/overview',how:'Anthropic이 만든 코딩 도구입니다. 내 컴퓨터의 프로젝트 폴더에서 AI가 파일을 직접 읽고 고치므로, 복사·붙여넣기가 필요 없습니다. 명령어 창(터미널)이나 데스크톱 앱에서 사용합니다.',fit:'파일이 많아지고 수정이 잦아진 분'},
+      {n:'Cursor',url:'https://cursor.com',how:'AI 기능이 들어간 코드 편집 프로그램입니다. 파일을 보면서 옆의 AI 대화창에 요청하면, 코드를 그 자리에서 고쳐 줍니다.',fit:'어디가 바뀌었는지 눈으로 확인하며 작업하고 싶은 분'}],
+    toolsKey:'중요한 것은 도구가 아니라 방법입니다.',
+    toolsNote:'설치가 어렵다면 ChatGPT 대화창에서 코드를 받아 메모장에 저장하는 방법으로도 시작할 수 있습니다. 각 도구의 요금과 설치 방법은 공식 사이트에서 확인하세요.',
+    summaryTitle:'어떤 도구를 써도 바뀌지 않는 것',
+    summary:['만들고 싶은 것을 메모로 정리합니다.','가장 작은 버전부터 만들어 달라고 합니다.','직접 열어서 써 보고, 바꿀 점을 하나씩 말합니다.','잘 되는 버전은 번호를 붙여 보관합니다.'],
+    final:'코드는 몰라도 됩니다. 원하는 것을 분명히 말하고, 결과를 직접 확인하는 사람이 있으면 됩니다.'}
+},
+zh:{
+  docTitle:'用 AI 對話做出期刊編輯器', brand:'期刊編輯器開發說明',
+  fontSize:'字級', smaller:'字變小', larger:'字變大',
+  heroTitle:'不懂程式，也能用對話做出來',
+  heroLead:'又松大學校友期刊編輯器，是透過與 ChatGPT 的程式開發工具 Codex 對話完成的。程式碼由 AI 撰寫；要做什麼、結果對不對，由人來決定和確認。以下用六個步驟說明這個過程。',
+  factTool:'使用工具', factToolV:'Codex（使用 ChatGPT 帳號）', factTime:'開發時間',
+  factResult:'成果', factResultV:'一個網頁編輯器檔案（約 3,500 行程式碼）',
+  cycleTitle:'開發就是這四件事的反覆',
+  cycle:[['提出需求','說出想做的東西'],['產生程式','AI 撰寫程式碼'],['提出修改','再說出要改的地方'],['親自確認','打開來實際使用']],
+  hub:'反覆進行', cycleNote:'不論使用 Codex、Claude Code 還是 Cursor，這個順序都一樣。', start:'從第一步開始', openEditor:'開啟正式編輯器',
+  railTitle:'六個步驟', stepN:'第 {n} 步', prev:'上一步', next:'下一步', backTop:'回到開頭',
+  copy:'複製', copied:'已複製', copyFail:'無法複製，請直接選取文字複製。',
+  learned:'從正式編輯器學到的事', footer:'這個說明頁面不會影響正式編輯器。',
+  band:'又松大學校友通訊', photoAlt:'照片位置範例', typing:'Codex 正在輸入',
+  titles:['先看完成品','整理要做什麼','做出第一版','用對話修改','出問題時怎麼辦','分享與進階'],
+  s1:{lead:'先親自用用看完成品。第一次開啟編輯器時，會自動出現使用手冊。',
+    todo:'要做的事',
+    items:['按下方「開啟正式編輯器」，會在新視窗開啟。','在使用手冊中按「▶ 觀看動畫示範（約 1 分鐘）」，編輯器會自動示範整個編輯過程。','依序點選上方的分頁。'],
+    tabs:['基本資料','排版設計','內容編輯','匯出'],
+    seeTitle:'畫面上看到的', hideTitle:'背後運作的功能',
+    hidden:['文章太長時，自動接到下一頁','頁面放不下時提出警告','復原與重做','自動儲存，以及可命名的草稿','三種介面語言（韓文、中文、英文）和兩種期刊語言（韓文、中文）','1～4 頁的期刊模板，5 種文章版式','匯出 PDF、PNG、Canva，以及換電腦用的備份檔'],
+    take:'這些功能不是一次做出來的，而是一項一項提出需求、確認、修改，慢慢累積而成。'},
+  s2:{lead:'交給 AI 之前，先寫一張備忘。需求越具體，第一次的結果就越好。下方欄位已用校友期刊編輯器為例填好，可以自由修改。',
+    f:{what:'想做什麼？',who:'誰會使用？',must:'一定要有的功能',later:'之後再加也可以的功能'},
+    def:{what:'製作校友期刊的網頁編輯器',who:'國際交流處職員（包含不熟悉電腦的人）',must:'輸入標題與正文、放入照片、預覽、存成 PDF',later:'多頁排版、中文版期刊、匯出到 Canva'},
+    outTitle:'要傳給 Codex 的第一則訊息', outHint:'複製後貼到 Codex 對話框。修改左邊欄位，訊息會立刻跟著改變。',
+    prompt:b=>`我想做以下的東西。\n\n- 想做的東西：${b.what}\n- 使用者：${b.who}\n- 一定要有的功能：${b.must}\n- 之後再加的功能：${b.later}\n\n我不懂程式。請先不要寫程式碼，先用簡單的話整理功能清單和製作順序。如果有需要我決定的事，請問我。`,
+    learnedText:'正式編輯器裡的「語言」其實分成兩個不同的設定：編輯器畫面的語言（韓文、中文、英文），以及期刊文章本身的語言（韓文、中文）。如果一開始只寫「支援三種語言」，AI 無法知道這個差別。這種區分要由使用的人來決定。'},
+  s3:{lead:'整理好之後，先請 AI 做出最小的版本。Codex 會直接在你電腦的資料夾裡建立檔案，所以不需要複製或另存程式碼。',
+    prepTitle:'第一次使用時的準備',
+    prep:['安裝 Codex 應用程式。有 Mac 和 Windows 版，用平常的 ChatGPT 帳號登入。','在桌面建立一個新資料夾，例如「期刊編輯器」。','在 Codex 應用程式中，選擇這個資料夾作為要工作的專案。'],
+    prepNote:'選單名稱和位置可能隨應用程式更新而改變。可使用的額度依 ChatGPT 方案而不同。',
+    chatTitle:'Codex 對話範例', you:'我',
+    userMsg:'請先只做我們整理內容中最基本的功能。左邊是輸入標題和正文的欄位，右邊是 A4 紙張形狀的預覽。輸入文字時，預覽要立刻更新。請在這個資料夾裡做成一個 index.html 檔案。',
+    showReply:'看 Codex 的回答', aiMsg:'已經做好您要的基本編輯器。', fileChip:'index.html（新檔案）', aiMsg2:'在資料夾中雙擊 index.html，就會在瀏覽器中打開。',
+    viewTitle:'確認結果',
+    view:['打開剛才建立的資料夾。','雙擊 index.html，編輯器就會在瀏覽器中打開。','過程中 Codex 可能會詢問是否允許建立檔案或執行指令。先看一下內容再允許；看不懂的話，可以問「這是什麼意思？請用簡單的話說明」。'],
+    tryTitle:'會得到這樣的第一版。請親自試試看。',
+    fTitle:'標題', fBody:'正文', preview:'預覽',
+    miniTitle:'好久不見', miniBody:'親愛的又松大學校友，大家好。本期為您帶來畢業生的最新消息與校園近況。',
+    take:'第一版很簡單也沒關係。重要的是親自打開來使用。'},
+  s4:{lead:'看了結果之後，一次用一句話說出想改的地方。Codex 修改檔案後，在瀏覽器按重新整理（F5）確認。請點選下面的需求，預覽會照著改變。再點一次就會恢復原狀。',
+    reqTitle:'可以傳送的修改需求',
+    reqs:[{k:'big',label:'標題放大',text:'請把標題字放大，顏色改成學校的深藍色（#173b63）。'},
+      {k:'band',label:'加上頁首色帶',text:'請在頁面最上方加一條深藍色頁首，寫上「又松大學校友通訊」。'},
+      {k:'photo',label:'加入照片位置',text:'請在標題下方加一個放照片的位置。'},
+      {k:'split',label:'照片與文字並排',text:'請改成照片和正文左右並排的版面。'}],
+    compareTitle:'意思相同，效果卻不同',
+    badL:'模糊的需求', bad:'請做得更漂亮一點。', badWhy:'AI 必須猜要改哪裡，可能連不想改的地方也被改掉。',
+    goodL:'明確的需求', good:'請把標題字放大，顏色改成深藍色。其他部分保持不變。', goodWhy:'要改什麼、怎麼改、什麼要保留，都寫清楚了。',
+    rulesTitle:'修改時遵守的三件事',
+    rules:['一次只提一個需求。','在需求最後加上這句話：','能正常運作時，把整個資料夾複製一份保存。例如「期刊編輯器_v1」、「期刊編輯器_v2」。出問題時，回到前一個資料夾就好。'],
+    tail:'其他功能保持不變。改完後，請用簡單的話告訴我改了什麼。',
+    take:'正式編輯器的所有功能，也都是這樣一項一項加上去的。'},
+  s5:{lead:'AI 寫的程式也常常出錯。不必緊張，把看到的情況照實告訴 AI，它就會修正。',
+    tplTitle:'回報問題的範本',
+    tpl:'有一個問題。\n\n- 我做的事：（例：按了「存成 PDF」按鈕）\n- 預期結果：（例：所有頁面都存成 PDF）\n- 實際結果：（例：存出來的檔案少了照片）\n\n附上螢幕截圖。其他功能保持不變，只修正這個問題。',
+    casesTitle:'常見情況',
+    cases:[['想讓 AI 看到畫面時','截圖後，貼到 Codex 對話框或用附件傳送。截圖快捷鍵：Windows 為 Windows + Shift + S，Mac 為 Command + Shift + 4。'],
+      ['Codex 詢問是否允許時','先看它要做什麼。看不懂的話，就問「這是什麼意思？請用簡單的話說明」。'],
+      ['對話太長時','開一個新對話就好。檔案都還在資料夾裡，只要說「我想繼續修改這個資料夾裡的編輯器」即可。'],
+      ['同一個問題一直出現時','回到最後一個正常的備份資料夾，把需求拆得更小再試一次。']],
+    privacyTitle:'注意個人資料',
+    privacy:'校友的真實姓名、聯絡方式、照片等個人資料，不要貼到 AI 對話框。練習時請使用假名和範例照片。'},
+  s6:{lead:'完成的編輯器只是一個 HTML 檔案。分享的方法有兩種。',
+    a:{t:'直接傳送檔案',tag:'最簡單',x:'把資料夾裡的 index.html 用電子郵件或通訊軟體傳送，對方雙擊就能打開，不需要安裝任何東西。'},
+    b:{t:'建立網址',tag:'選用',x:'使用名為 GitHub Pages 的免費服務，可以產生任何人都能開啟的網址。正式編輯器就是這樣公開的。第一次使用的話，請 Codex 或 ChatGPT 一步一步帶你操作即可。'},
+    bPrompt:'我想把一個 HTML 檔案用 GitHub Pages 公開到網路上。我是第一次使用。請一次只告訴我一個步驟，說明要在畫面上按什麼。我說「下一步」之後，再告訴我下一個步驟。',
+    detailsSum:'先看看 GitHub Pages 的步驟',
+    gh:['到 GitHub（github.com）註冊並登入。','建立新的儲存庫（Repository）。','上傳 index.html 檔案。','在 Settings → Pages 選擇 main 分支並儲存。','幾分鐘後，打開產生的網址確認。'],
+    ghNote:'GitHub 畫面上的選單名稱可能會改變。',
+    toolsTitle:'工具不同，方法相同',
+    toolsLead:'這份說明以 Codex 為例，但同樣的事也能用其他 AI 工具完成。不同的只是畫面和操作方式，做事的方法是一樣的。',
+    howL:'怎麼運作', fitL:'適合誰', usedTag:'本說明的範例', link:'官方網站',
+    tools:[{n:'Codex',used:true,url:'https://developers.openai.com/codex/app',how:'OpenAI 推出的程式開發工具。在用 ChatGPT 帳號登入的桌面應用程式（Mac、Windows）中，AI 會直接建立和修改所選資料夾裡的檔案。',fit:'平常就用 ChatGPT、想用熟悉的方式開始的人'},
+      {n:'Claude Code',url:'https://docs.claude.com/en/docs/claude-code/overview',how:'Anthropic 推出的程式開發工具。AI 會在你電腦上的專案資料夾裡直接讀取和修改檔案，不需要複製貼上。可在命令列（終端機）或桌面應用程式中使用。',fit:'檔案變多、修改頻繁的人'},
+      {n:'Cursor',url:'https://cursor.com',how:'內建 AI 功能的程式編輯軟體。一邊看著檔案，一邊在旁邊的 AI 對話框提出需求，它就會直接修改程式碼。',fit:'想親眼看到改了哪些地方的人'}],
+    toolsKey:'重要的不是工具，而是方法。',
+    toolsNote:'如果安裝有困難，也可以先從 ChatGPT 對話視窗取得程式碼、用記事本存檔的方式開始。各工具的費用和安裝方式，請到官方網站確認。',
+    summaryTitle:'不論用哪個工具，都不會變的事',
+    summary:['把想做的東西寫成備忘。','先請 AI 做出最小的版本。','親自打開使用，再一項一項說出要改的地方。','能正常運作的版本，加上編號保存。'],
+    final:'不懂程式也沒關係。只要有人能清楚說出想要什麼，並親自確認結果就可以。'}
+},
+en:{
+  docTitle:'Build a newsletter editor by talking with AI', brand:'How the newsletter editor was built',
+  fontSize:'Text size', smaller:'Smaller text', larger:'Larger text',
+  heroTitle:'No coding needed. You build it by talking.',
+  heroLead:'The Woosong University alumni newsletter editor was built through conversations with Codex, ChatGPT’s coding tool. The AI wrote the code; a person decided what to build and checked every result. This guide walks through that process in six steps.',
+  factTool:'Tool used', factToolV:'Codex (with a ChatGPT account)', factTime:'Development time',
+  factResult:'Result', factResultV:'One web editor file (about 3,500 lines of code)',
+  cycleTitle:'Development is these four things, repeated',
+  cycle:[['Ask','Say what you want'],['Build','The AI writes the code'],['Refine','Say what to change'],['Check','Open it and try it']],
+  hub:'Repeat', cycleNote:'Whether you use Codex, Claude Code or Cursor, this order stays the same.', start:'Start with step 1', openEditor:'Open the real editor',
+  railTitle:'Six steps', stepN:'Step {n}', prev:'Previous step', next:'Next step', backTop:'Back to the start',
+  copy:'Copy', copied:'Copied', copyFail:'Couldn’t copy. Please select the text and copy it yourself.',
+  learned:'Learned from the real editor', footer:'This guide does not change the real editor.',
+  band:'Woosong University Alumni News', photoAlt:'Sample photo area', typing:'Codex is typing',
+  titles:['See the finished editor','Decide what to build','Make the first version','Improve it by talking','When something goes wrong','Share and go further'],
+  s1:{lead:'Start by trying the finished editor yourself. The first time you open it, a user manual appears automatically.',
+    todo:'Try this',
+    items:['Press “Open the real editor” below. It opens in a new window.','In the manual, press “▶ Watch the animated demo (about 1 minute)”. The editor shows the whole editing process on its own.','Click the tabs at the top in order.'],
+    tabs:['Basic Information','Layout & Design','Content Editor','Export'],
+    seeTitle:'What you see', hideTitle:'What works behind it',
+    hidden:['Text that runs too long continues on the next page automatically','A warning when a page overflows','Undo and redo','Autosave, plus named drafts','Three interface languages (Korean, Chinese, English) and two newsletter languages (Korean, Chinese)','Newsletter templates of 1–4 pages, five article layouts','Export to PDF, PNG and Canva, plus a backup file for moving to another computer'],
+    take:'None of this was built at once. Each feature was requested, checked and fixed, one at a time.'},
+  s2:{lead:'Before handing work to the AI, write a short note. The more specific the request, the better the first result. The fields below are filled in with the newsletter editor as an example; change them freely.',
+    f:{what:'What do you want to make?',who:'Who will use it?',must:'Must-have features',later:'Features that can wait'},
+    def:{what:'A web editor for producing the alumni newsletter',who:'International office staff, including people who are not comfortable with computers',must:'Title and body text, adding photos, a preview, saving as PDF',later:'Multiple pages, a Chinese edition, export to Canva'},
+    outTitle:'Your first message to Codex', outHint:'Copy it and paste it into the Codex chat box. The message updates as soon as you edit the fields.',
+    prompt:b=>`I want to make the following.\n\n- What: ${b.what}\n- Users: ${b.who}\n- Must-have features: ${b.must}\n- Features to add later: ${b.later}\n\nI don’t know programming. Please don’t write code yet. First, list the features and the order to build them in plain language, and ask me about anything I need to decide.`,
+    learnedText:'In the real editor, “language” is two separate settings: the language of the editor screen (Korean, Chinese, English) and the language of the newsletter articles (Korean, Chinese). If the first request only says “support three languages”, the AI cannot know about this difference. Distinctions like this are decided by the person who will use the tool.'},
+  s3:{lead:'Once the note is ready, ask for the smallest possible version first. Codex creates the files directly in a folder on your computer, so there is no code to copy or save.',
+    prepTitle:'One-time setup',
+    prep:['Install the Codex app. It is available for Mac and Windows; sign in with your usual ChatGPT account.','Create a new folder on your desktop, for example “Newsletter Editor”.','In the Codex app, choose that folder as the project to work in.'],
+    prepNote:'Menu names and positions may change as the app is updated. How much you can use depends on your ChatGPT plan.',
+    chatTitle:'Example Codex conversation', you:'You',
+    userMsg:'From what we listed, please build only the most basic features first: a place to type a title and body text on the left, and an A4-shaped preview on the right that updates as I type. Please make it a single index.html file in this folder.',
+    showReply:'See Codex’s reply', aiMsg:'I’ve built the basic editor you asked for.', fileChip:'index.html (new file)', aiMsg2:'Double-click index.html in the folder to open it in your browser.',
+    viewTitle:'Check the result',
+    view:['Open the folder you created.','Double-click index.html. The editor opens in your web browser.','While working, Codex may ask whether it can create a file or run a command. Read what it wants to do, then allow it. If it isn’t clear, ask “What does this mean? Please explain simply.”'],
+    tryTitle:'This is the kind of first version you get. Try it.',
+    fTitle:'Title', fBody:'Body text', preview:'Preview',
+    miniTitle:'Together Again', miniBody:'Dear Woosong University alumni, welcome. This issue brings news from our graduates and stories from campus.',
+    take:'A simple first version is fine. What matters is opening it and trying it yourself.'},
+  s4:{lead:'Look at the result and say what to change, one sentence at a time. After Codex edits the file, refresh your browser (F5) to check. Press a request below and the preview changes to match. Press it again to undo it.',
+    reqTitle:'Requests you could send',
+    reqs:[{k:'big',label:'Larger title',text:'Make the title text larger and change its color to the university navy (#173b63).'},
+      {k:'band',label:'Add a header band',text:'Add a navy header band at the top of the page that says “Woosong University Alumni News”.'},
+      {k:'photo',label:'Add a photo area',text:'Add a space for a photo below the title.'},
+      {k:'split',label:'Photo beside text',text:'Change the layout so the photo and the body text sit side by side.'}],
+    compareTitle:'Same intent, different results',
+    badL:'Vague request', bad:'Make it look nicer.', badWhy:'The AI has to guess what to change, so parts you wanted to keep may change too.',
+    goodL:'Clear request', good:'Make the title larger and change its color to navy. Leave everything else as it is.', goodWhy:'It says what to change, how to change it, and what to keep.',
+    rulesTitle:'Three rules when making changes',
+    rules:['Ask for one change at a time.','End each request with this sentence:','When things work, copy the whole folder as a backup, such as “Newsletter Editor_v1” and “Newsletter Editor_v2”. If something breaks, go back to the previous folder.'],
+    tail:'Keep all other features as they are. After the change, tell me in plain words what you changed.',
+    take:'Every feature in the real editor was added this way, one at a time.'},
+  s5:{lead:'Code written by AI is often wrong. That’s normal. Tell the AI exactly what you saw, and it will fix it.',
+    tplTitle:'A template for reporting a problem',
+    tpl:'There is a problem.\n\n- What I did: (e.g. I pressed the “Save as PDF” button)\n- What I expected: (e.g. every page saved as a PDF)\n- What happened: (e.g. the PDF was saved without the photos)\n\nI’ve attached a screenshot. Keep all other features as they are and fix only this problem.',
+    casesTitle:'Common situations',
+    cases:[['You want the AI to see the screen','Take a screenshot and paste or attach it in the Codex chat. Shortcut: Windows + Shift + S on Windows, Command + Shift + 4 on a Mac.'],
+      ['Codex asks for permission','Read what it wants to do. If it isn’t clear, ask “What does this mean? Please explain simply.”'],
+      ['The conversation gets very long','Just start a new conversation. The files are still in the folder, so you can simply say “I want to keep improving the editor in this folder.”'],
+      ['The same problem keeps coming back','Go back to the last backup folder that worked, split the request into smaller steps and try again.']],
+    privacyTitle:'Protect personal information',
+    privacy:'Don’t paste alumni names, contact details or photos into an AI chat. Use made-up names and sample photos when practicing.'},
+  s6:{lead:'The finished editor is a single HTML file. There are two ways to share it.',
+    a:{t:'Send the file itself',tag:'Easiest',x:'Send the index.html file from the folder by email or messenger. The other person double-clicks it to open it; nothing needs to be installed.'},
+    b:{t:'Give it a web address',tag:'Optional',x:'A free service called GitHub Pages gives the file an address anyone can open. The real editor is published this way. If it’s your first time, ask Codex or ChatGPT to guide you step by step.'},
+    bPrompt:'I want to publish one HTML file on the internet with GitHub Pages. This is my first time. Tell me only one step at a time, including what to click on the screen. When I say “next”, give me the next step.',
+    detailsSum:'Preview the GitHub Pages steps',
+    gh:['Sign up at GitHub (github.com) and sign in.','Create a new repository.','Upload the index.html file.','In Settings → Pages, choose the main branch and save.','After a few minutes, open the new address to check it.'],
+    ghNote:'Menu names on GitHub may change.',
+    toolsTitle:'Different tools, same method',
+    toolsLead:'This guide uses Codex as its example, but the same work can be done with other AI tools. Only the screens and controls differ; the way of working is the same.',
+    howL:'How it works', fitL:'Good for', usedTag:'Example in this guide', link:'Official site',
+    tools:[{n:'Codex',used:true,url:'https://developers.openai.com/codex/app',how:'A coding tool from OpenAI. In a desktop app (Mac and Windows) that you sign in to with a ChatGPT account, the AI creates and edits the files in the folder you choose.',fit:'People who already use ChatGPT and want a familiar start'},
+      {n:'Claude Code',url:'https://docs.claude.com/en/docs/claude-code/overview',how:'A coding tool from Anthropic. The AI reads and edits the files in a project folder on your computer directly, so there is no copying and pasting. It runs in a terminal (command window) or a desktop app.',fit:'People whose project has grown to many files and frequent changes'},
+      {n:'Cursor',url:'https://cursor.com',how:'A code editing program with AI built in. You look at your files while asking the AI chat beside them for changes, and it edits the code in place.',fit:'People who want to see exactly what changed'}],
+    toolsKey:'What matters is the method, not the tool.',
+    toolsNote:'If installing is difficult, you can also start by getting code in the ChatGPT chat window and saving it with Notepad. Check each tool’s official site for pricing and installation.',
+    summaryTitle:'What stays the same, whatever the tool',
+    summary:['Write down what you want to make.','Ask for the smallest version first.','Open it, try it, and ask for changes one at a time.','Keep each working version with a number.'],
+    final:'You don’t need to know code. You need someone who can say clearly what they want and check the result in person.'}
+}};
+
+/* ===== State ===== */
+const store={get(k,d){try{const v=localStorage.getItem('nx_guide_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('nx_guide_'+k,JSON.stringify(v))}catch(e){}}};
+const detectLang=()=>{const q=new URLSearchParams(location.search).get('lang');if(['ko','zh','en'].includes(q))return q;const s=store.get('lang',null);if(['ko','zh','en'].includes(s))return s;const n=(navigator.languages&&navigator.languages[0]||navigator.language||'ko').toLowerCase();return n.startsWith('zh')?'zh':n.startsWith('en')?'en':'ko'};
+const S={lang:detectLang(),view:-1,fs:store.get('fs',1),visited:new Set(store.get('visited',[])),builder:null,revealed:false,
+  mini:{title:null,body:null,big:false,band:false,photo:false,split:false}};
+const T=()=>L[S.lang];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const miniTitle=()=>S.mini.title??T().s3.miniTitle;
+const miniBody=()=>S.mini.body??T().s3.miniBody;
+const builder=()=>S.builder||T().s2.def;
+const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ===== Pieces ===== */
+const photoSVG=()=>`<svg viewBox="0 0 160 100" role="img" aria-label="${esc(T().photoAlt)}"><rect width="160" height="100" fill="#dfe7f0"/><circle cx="133" cy="22" r="9" fill="#ffe27a"/><path d="M0 80H160" stroke="#173b63" stroke-width="1.4"/><g fill="none" stroke="#173b63" stroke-width="1.6"><rect x="24" y="40" width="48" height="40"/><path d="M24 40L48 28L72 40"/><rect x="80" y="20" width="24" height="60"/><rect x="110" y="46" width="32" height="34"/><path d="M85 30h14M85 39h14M85 48h14M85 57h14M85 66h14M31 52h8M45 52h8M58 52h8M31 63h8M45 63h8M58 63h8M116 56h20M116 66h20"/></g><path d="M8 80c4-14 10-14 14 0M142 80c3-10 8-10 12 0" fill="#2e6a4f" opacity=".55"/></svg>`;
+const sheetClasses=()=>['sheet',...['big','band','photo','split'].filter(k=>S.mini[k])].join(' ');
+const sheetHTML=()=>`<div class="sheet-wrap"><div class="${sheetClasses()}" id="sheet"><div class="sheet-band">${esc(T().band)}</div><div class="sheet-inner"><h4 class="sheet-title" id="sheetTitle">${esc(miniTitle())}</h4><div class="sheet-main"><figure class="sheet-photo">${photoSVG()}</figure><p class="sheet-body" id="sheetBody">${esc(miniBody())}</p></div></div></div></div>`;
+const copyBtn=(key,primary)=>`<button type="button" class="${primary?'btn primary':'small-btn'}" data-copy="${key}">${esc(T().copy)}</button>`;
+const doList=items=>`<ol class="do">${items.map(i=>`<li>${esc(i)}</li>`).join('')}</ol>`;
+
+function railHTML(){
+  return `<h2 class="rail-title">${esc(T().railTitle)}</h2><ol class="rail">${T().titles.map((t,i)=>{
+    const cur=S.view===i, ok=S.visited.has(i)&&!cur;
+    return `<li><button type="button" data-go="${i}" ${cur?'aria-current="step"':''}><span class="num${ok?' ok':''}">${ok?'✓ ':''}${esc(T().stepN.replace('{n}',i+1))}</span><span>${esc(t)}</span></button></li>`}).join('')}</ol>`;
+}
+
+function homeHTML(){
+  const t=T(), time=DEV_TIME[S.lang];
+  return `<section class="hero">
+    <div>
+      <h1>${esc(t.heroTitle)}</h1>
+      <p class="lead">${esc(t.heroLead)}</p>
+      <dl class="facts">
+        <dt>${esc(t.factTool)}</dt><dd>${esc(t.factToolV)}</dd>
+        ${time?`<dt>${esc(t.factTime)}</dt><dd>${esc(time)}</dd>`:''}
+        <dt>${esc(t.factResult)}</dt><dd>${esc(t.factResultV)}</dd>
+      </dl>
+      <div class="btn-row"><button type="button" class="btn primary" data-go="0">${esc(t.start)}</button><a class="btn" href="${EDITOR_URL}" target="_blank" rel="noopener">${esc(t.openEditor)}</a></div>
+    </div>
+    <div class="cycle-wrap">
+      <h2>${esc(t.cycleTitle)}</h2>
+      <ol class="cycle">
+        ${t.cycle.map((c,i)=>`<li><i>${[1,2,4,3][i]}</i><b>${esc(c[0])}</b><span>${esc(c[1])}</span></li>`).join('')}
+        <span class="arrow a1" aria-hidden="true">→</span><span class="arrow a2" aria-hidden="true">↓</span><span class="arrow a3" aria-hidden="true">←</span><span class="arrow a4" aria-hidden="true">↑</span>
+        <span class="hub">${esc(t.hub)}</span>
+      </ol>
+      <p class="cycle-note">${esc(t.cycleNote)}</p>
+    </div>
+  </section>${railHTML()}`;
+}
+
+const steps=[
+ ()=>{const s=T().s1;return `
+  <p class="lead">${esc(s.lead)}</p>
+  <div class="panel"><h3>${esc(s.todo)}</h3>${doList(s.items)}
+    <div class="btn-row"><a class="btn primary" href="${EDITOR_URL}" target="_blank" rel="noopener">${esc(T().openEditor)}</a></div></div>
+  <div class="berg">
+    <div class="berg-top"><h3>${esc(s.seeTitle)}</h3><ol class="tabs">${s.tabs.map((x,i)=>`<li><b>${i+1}</b>${esc(x)}</li>`).join('')}</ol></div>
+    <div class="water" aria-hidden="true"></div>
+    <div class="berg-bottom"><h3>${esc(s.hideTitle)}</h3><ul>${s.hidden.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>
+  </div>
+  <p class="take"><span class="mark">${esc(s.take)}</span></p>`},
+ ()=>{const s=T().s2,b=builder();return `
+  <p class="lead">${esc(s.lead)}</p>
+  <div class="builder">
+    <div>${['what','who','must','later'].map(k=>`<label class="field"><span>${esc(s.f[k])}</span><textarea data-b="${k}" rows="2">${esc(b[k])}</textarea></label>`).join('')}</div>
+    <div class="outbox"><h3>${esc(s.outTitle)}</h3><p class="hint">${esc(s.outHint)}</p><pre class="msgbox" id="bOut">${esc(s.prompt(b))}</pre>${copyBtn('builder',true)}</div>
+  </div>
+  <aside class="learned"><h3>${esc(T().learned)}</h3><p>${esc(s.learnedText)}</p></aside>`},
+ ()=>{const s=T().s3;return `
+  <p class="lead">${esc(s.lead)}</p>
+  <div class="panel"><h3>${esc(s.prepTitle)}</h3>${doList(s.prep)}<p class="note-small" style="margin-top:.8rem">${esc(s.prepNote)}</p></div>
+  <div class="chat" id="chat">
+    <h3>${esc(s.chatTitle)}</h3>
+    <div class="msg me"><div class="who">${esc(s.you)}</div><div class="bubble">${esc(s.userMsg)}</div>${copyBtn('s3user')}</div>
+    <div id="aiSlot">${S.revealed?aiHTML():`<button type="button" class="btn primary" data-act="reveal">${esc(s.showReply)}</button>`}</div>
+  </div>
+  ${S.revealed?afterRevealHTML():''}`},
+ ()=>{const s=T().s4;return `
+  <p class="lead">${esc(s.lead)}</p>
+  <div class="edit-grid">
+    <div><h3>${esc(s.reqTitle)}</h3><div class="reqs">${s.reqs.map(r=>`<button type="button" class="req" data-req="${r.k}" aria-pressed="${S.mini[r.k]}"><span class="req-check" aria-hidden="true"></span><span><b>${esc(r.label)}</b><span class="req-text">${esc(r.text)}</span></span></button>`).join('')}</div></div>
+    <div><div class="prev-label">${esc(T().s3.preview)}</div>${sheetHTML()}</div>
+  </div>
+  <div class="panel"><h3>${esc(s.compareTitle)}</h3><div class="compare">
+    <div class="cmp bad"><span class="lbl">${esc(s.badL)}</span><q>${esc(s.bad)}</q><p>${esc(s.badWhy)}</p></div>
+    <div class="cmp good"><span class="lbl">${esc(s.goodL)}</span><q>${esc(s.good)}</q><p>${esc(s.goodWhy)}</p></div>
+  </div></div>
+  <div class="panel"><h3>${esc(s.rulesTitle)}</h3><ol class="do">
+    <li>${esc(s.rules[0])}</li>
+    <li>${esc(s.rules[1])}<div class="tailbox"><span>${esc(s.tail)}</span>${copyBtn('tail')}</div></li>
+    <li>${esc(s.rules[2])}</li>
+  </ol></div>
+  <p class="take"><span class="mark">${esc(s.take)}</span></p>`},
+ ()=>{const s=T().s5;return `
+  <p class="lead">${esc(s.lead)}</p>
+  <div class="panel"><h3>${esc(s.tplTitle)}</h3><pre class="msgbox">${esc(s.tpl)}</pre>${copyBtn('tpl',true)}</div>
+  <h3 class="sub-title">${esc(s.casesTitle)}</h3>
+  <div class="cases">${s.cases.map(c=>`<div class="case"><b>${esc(c[0])}</b><p>${esc(c[1])}</p></div>`).join('')}</div>
+  <div class="notice"><h3>${esc(s.privacyTitle)}</h3><p>${esc(s.privacy)}</p></div>`},
+ ()=>{const s=T().s6;return `
+  <p class="lead">${esc(s.lead)}</p>
+  <div class="opts">
+    <div class="opt"><h4>${esc(s.a.t)}<span class="tag">${esc(s.a.tag)}</span></h4><p>${esc(s.a.x)}</p></div>
+    <div class="opt"><h4>${esc(s.b.t)}<span class="tag opt-tag">${esc(s.b.tag)}</span></h4><p>${esc(s.b.x)}</p>
+      <pre class="msgbox" style="margin-top:1rem">${esc(s.bPrompt)}</pre>${copyBtn('gh')}
+      <details><summary>${esc(s.detailsSum)}</summary>${doList(s.gh)}<p class="note-small">${esc(s.ghNote)}</p></details>
+    </div>
+  </div>
+  <h3 class="sub-title">${esc(s.toolsTitle)}</h3>
+  <p class="lead" style="margin-top:.5rem">${esc(s.toolsLead)}</p>
+  <div class="tools">${s.tools.map(x=>`<div class="tool${x.used?' used':''}"><h4>${esc(x.n)}${x.used?`<span class="tag">${esc(s.usedTag)}</span>`:''}</h4>
+    <dl><dt>${esc(s.howL)}</dt><dd>${esc(x.how)}</dd><dt>${esc(s.fitL)}</dt><dd>${esc(x.fit)}</dd></dl>
+    ${x.url?`<a class="tool-link" href="${x.url}" target="_blank" rel="noopener">${esc(s.link)}</a>`:''}</div>`).join('')}</div>
+  <p class="take"><span class="mark">${esc(s.toolsKey)}</span></p>
+  <p class="note-small" style="max-width:42rem;margin-top:.6rem">${esc(s.toolsNote)}</p>
+  <h3 class="sub-title">${esc(s.summaryTitle)}</h3>
+  <ol class="summary-list" style="margin-top:1rem">${s.summary.map(x=>`<li>${esc(x)}</li>`).join('')}</ol>
+  <p class="take"><span class="mark">${esc(s.final)}</span></p>`}
+];
+
+function aiHTML(){const s=T().s3;return `<div class="msg ai"><div class="who">Codex</div><div class="bubble"><p>${esc(s.aiMsg)}</p><div class="codechip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 2.5h8l4.5 4.5v14.5H6z"/><path d="M14 2.5V7h4.5M9.5 15l2 2 3.5-4"/></svg><span>${esc(s.fileChip)}</span></div><p>${esc(s.aiMsg2)}</p></div></div>`}
+function afterRevealHTML(){const s=T().s3;return `
+  <div class="panel"><h3>${esc(s.viewTitle)}</h3>${doList(s.view)}</div>
+  <h3 class="sub-title">${esc(s.tryTitle)}</h3>
+  <div class="mini">
+    <div><label class="field"><span>${esc(s.fTitle)}</span><input data-m="title" maxlength="80" value="${esc(miniTitle())}"></label>
+      <label class="field"><span>${esc(s.fBody)}</span><textarea data-m="body" rows="6">${esc(miniBody())}</textarea></label></div>
+    <div><div class="prev-label">${esc(s.preview)}</div>${sheetHTML()}</div>
+  </div>
+  <p class="take"><span class="mark">${esc(s.take)}</span></p>`}
+
+/* ===== Render ===== */
+function renderChrome(){
+  const t=T();
+  document.documentElement.lang=S.lang==='zh'?'zh-Hant':S.lang;
+  document.title=t.docTitle;
+  $('brand').textContent=t.brand;
+  $('fsLabel').textContent=t.fontSize;
+  $('fsMinus').setAttribute('aria-label',t.smaller);$('fsPlus').setAttribute('aria-label',t.larger);
+  $('footNote').textContent=t.footer;
+  document.querySelectorAll('[data-lang]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lang===S.lang)));
+  document.documentElement.style.setProperty('--fs',S.fs);
+}
+function render(){
+  renderChrome();
+  const t=T();
+  if(S.view<0){$('main').innerHTML=homeHTML();return}
+  const i=S.view;
+  $('main').innerHTML=`${railHTML()}<section class="step-body" aria-labelledby="stepTitle">
+    <div class="step-head"><div class="kicker">${esc(t.stepN.replace('{n}',i+1))}</div><h2 id="stepTitle" tabindex="-1">${esc(t.titles[i])}</h2></div>
+    ${steps[i]()}
+    <nav class="pager"><button type="button" class="btn" data-go="${i-1}" ${i===0?'disabled':''}>${esc(t.prev)}</button>
+    ${i<5?`<button type="button" class="btn primary" data-go="${i+1}">${esc(t.next)}</button>`:`<button type="button" class="btn primary" data-go="-1">${esc(t.backTop)}</button>`}</nav>
+  </section>`;
+}
+function go(i){
+  S.view=Math.max(-1,Math.min(5,i));
+  if(S.view>=0){S.visited.add(S.view);store.set('visited',[...S.visited])}
+  render();
+  window.scrollTo({top:0,behavior:reduced()?'auto':'smooth'});
+  if(S.view>=0)setTimeout(()=>$('stepTitle')?.focus({preventScroll:true}),0);
+}
+
+/* ===== Copy ===== */
+function toast(m){const e=$('toast');e.textContent=m;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),1800)}
+const copySources={builder:()=>T().s2.prompt(builder()),s3user:()=>T().s3.userMsg,tail:()=>T().s4.tail,tpl:()=>T().s5.tpl,gh:()=>T().s6.bPrompt};
+async function copyText(txt){
+  try{await navigator.clipboard.writeText(txt);return true}catch(e){
+    try{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();return ok}catch(e2){return false}}
+}
+
+/* ===== Events ===== */
+document.addEventListener('click',async e=>{
+  const g=e.target.closest('[data-go]');if(g&&!g.disabled){go(Number(g.dataset.go));return}
+  const l=e.target.closest('[data-lang]');if(l){S.lang=l.dataset.lang;store.set('lang',S.lang);S.builder=null;S.mini.title=null;S.mini.body=null;render();return}
+  const c=e.target.closest('[data-copy]');if(c){const ok=await copyText(copySources[c.dataset.copy]());toast(ok?T().copied:T().copyFail);return}
+  const r=e.target.closest('[data-req]');if(r){const k=r.dataset.req;S.mini[k]=!S.mini[k];r.setAttribute('aria-pressed',String(S.mini[k]));const sh=$('sheet');if(sh)sh.className=sheetClasses();return}
+  if(e.target.closest('[data-act="reveal"]')){
+    const slot=$('aiSlot');
+    slot.innerHTML=`<div class="msg ai"><div class="who">Codex</div><div class="typing" role="status" aria-label="${esc(T().typing)}"><i></i><i></i><i></i></div></div>`;
+    setTimeout(()=>{S.revealed=true;render();const ai=document.querySelector('.msg.ai');if(ai)ai.scrollIntoView({behavior:reduced()?'auto':'smooth',block:'center'})},reduced()?0:1000);
+  }
+});
+document.addEventListener('input',e=>{
+  const b=e.target.dataset.b;
+  if(b){S.builder={...builder(),[b]:e.target.value};$('bOut').textContent=T().s2.prompt(S.builder);return}
+  const m=e.target.dataset.m;
+  if(m){S.mini[m]=e.target.value;if(m==='title')$('sheetTitle').textContent=e.target.value;else $('sheetBody').textContent=e.target.value}
+});
+$('brand').onclick=()=>go(-1);
+$('fsMinus').onclick=()=>{S.fs=Math.max(.9,Math.round((S.fs-.1)*10)/10);store.set('fs',S.fs);renderChrome()};
+$('fsPlus').onclick=()=>{S.fs=Math.min(1.5,Math.round((S.fs+.1)*10)/10);store.set('fs',S.fs);renderChrome()};
+
+
+/* Liquid glass: refraction where supported, light that follows the pointer */
+(function(){
+  const ua=navigator.userAgent;
+  if(window.chrome&&/Chrome|Edg\//.test(ua)&&!/Firefox/.test(ua))document.documentElement.classList.add('lg-refract');
+  if(reduced())return;
+  const SEL='.panel,.outbox,.chat,.opt,.case,.tool,.cycle li,.rail button,.req,.summary-list li,details,.notice,.learned,.btn,.small-btn,.fontctl button,.cmp';
+  let raf=0,last=null;
+  document.addEventListener('pointermove',e=>{
+    if(raf)return;raf=requestAnimationFrame(()=>{raf=0;
+      const el=e.target.closest&&e.target.closest(SEL);
+      if(last&&last!==el){last.style.removeProperty('--mx');last.style.removeProperty('--my')}
+      if(el){const r=el.getBoundingClientRect();el.style.setProperty('--mx',((e.clientX-r.left)/r.width*100)+'%');el.style.setProperty('--my',((e.clientY-r.top)/r.height*100)+'%')}
+      last=el;});
+  },{passive:true});
+})();
+render();
+</script>
+</body>
+</html>
